@@ -1,0 +1,8 @@
+org/javig/nn/NeuralNetwork.class
+org/javig/math/Matrix.class
+org/javig/util/NeuralNetworkTrainer.class
+org/javig/Main.class
+org/javig/nn/Activation.class
+org/javig/util/DataContainer.class
+org/javig/models/Modelo3enRaya.class
+org/javig/util/ModelManager.class

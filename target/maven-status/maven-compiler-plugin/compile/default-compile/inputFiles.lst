@@ -1,0 +1,8 @@
+/home/javier/Repos/neural-lib/src/main/java/org/javig/nn/NeuralNetwork.java
+/home/javier/Repos/neural-lib/src/main/java/org/javig/nn/Activation.java
+/home/javier/Repos/neural-lib/src/main/java/org/javig/util/ModelManager.java
+/home/javier/Repos/neural-lib/src/main/java/org/javig/util/DataContainer.java
+/home/javier/Repos/neural-lib/src/main/java/org/javig/models/Modelo3enRaya.java
+/home/javier/Repos/neural-lib/src/main/java/org/javig/util/NeuralNetworkTrainer.java
+/home/javier/Repos/neural-lib/src/main/java/org/javig/math/Matrix.java
+/home/javier/Repos/neural-lib/src/main/java/org/javig/Main.java
