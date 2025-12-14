@@ -27,7 +27,7 @@ public class Modelo3enRayaTest {
         Modelo3enRaya modelo = new Modelo3enRaya();
 
         // Cargar modelo entrenado
-        NeuralNetwork loadedModel = ModelManager.loadModel("modelo3enRaya.nn");
+        NeuralNetwork loadedModel = ModelManager.loadModel(modelo.getNombreModelo());
 
         // Verificamos que todos eligen la misma casilla ganadora/bloqueadora en este
         // caso determinista
@@ -49,11 +49,12 @@ public class Modelo3enRayaTest {
 
         for (int i = 0; i < 100; i++) {
             Modelo3enRaya modelo = new Modelo3enRaya();
-            NeuralNetwork loadedModel = ModelManager.loadModel("modelo3enRaya.nn");
+            NeuralNetwork loadedModel = ModelManager.loadModel(modelo.getNombreModelo());
             Mundo mundo = modelo.getMundo();
             mundo.setMarca(Funciones3enRaya.marcaMaquina3enRaya(mundo.getMarca()));
             mundo = simulaPartida(mundo, loadedModel, modelo);
             assert !Funciones3enRaya.hay3EnRaya(mundo.getMovimiento().getTablero());
+            System.out.println("Partida " + i + " terminada");
         }
 
     }
@@ -61,17 +62,13 @@ public class Modelo3enRayaTest {
     private Mundo simulaPartida(Mundo mundo, NeuralNetwork loadedModel, Modelo3enRaya modelo) {
         while (true) {
             Tablero movimientoMinimax = Minimax.negamax(mundo);
-            System.out.println("Movimiento Minimax: \n" + movimientoMinimax.getMatrix());
             if (Funciones3enRaya.fin3enRaya(movimientoMinimax)) {
-                System.out.println("Fin del juego");
                 break;
             }
             Posicion posicionModelo = ModelManager.getMejorMovimiento(ModelManager.predictIndex(loadedModel,
                     modelo.tabularToInput(movimientoMinimax)));
             Tablero movimientoModelo = modelo.obtenerTablero(movimientoMinimax, posicionModelo);
-            System.out.println("Movimiento Modelo: \n" + movimientoModelo.getMatrix());
             if (Funciones3enRaya.fin3enRaya(movimientoModelo)) {
-                System.out.println("Fin del juego");
                 break;
             }
             mundo.setMovimiento(new Movimiento(movimientoModelo, posicionModelo));

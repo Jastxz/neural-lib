@@ -22,18 +22,23 @@ public class Modelo3enRaya {
     private NeuralNetwork cerebro;
     private String nombreModelo = "modelo3enRaya.nn";
     private Mundo mundo;
+    private Posicion posInicial = new Posicion(0, 0);
+    private Tablero tablero = Funciones3enRaya.inicial3enRaya();
+    private Movimiento movimientoInicial = new Movimiento(tablero, posInicial);
+    private String juego = Util.juego3enRaya;
+    private int dificultad = 2;
+    private int profundidad = 9;
+    private int marca = 1;
+    private int turno = 1;
+    private boolean esMaquina = true;
 
     public Modelo3enRaya() {
-        cerebro = new NeuralNetwork(9, 18, 9);
-        Posicion posInicial = new Posicion(0, 0);
-        Tablero tablero = Funciones3enRaya.inicial3enRaya();
-        Movimiento movimientoInicial = new Movimiento(tablero, posInicial);
-        String juego = Util.juego3enRaya;
-        int dificultad = 2;
-        int profundidad = 9;
-        int marca = 1;
-        int turno = 1;
-        boolean esMaquina = true;
+        cerebro = new NeuralNetwork(9, 15, 9);
+        mundo = new Mundo(movimientoInicial, juego, dificultad, profundidad, marca, turno, esMaquina);
+    }
+
+    public Modelo3enRaya(NeuralNetwork cerebro) {
+        this.cerebro = cerebro;
         mundo = new Mundo(movimientoInicial, juego, dificultad, profundidad, marca, turno, esMaquina);
     }
 
@@ -46,8 +51,8 @@ public class Modelo3enRaya {
         System.out.println("Datos generados exitosamente. Total de muestras: " + training_inputs.length);
 
         // 3. Train using the Utility Class
-        // Trains for 400 epochs, logging progress every 50 epochs
-        NeuralNetworkTrainer.train(cerebro, training_inputs, training_outputs, 500, 50);
+        // Trains for 100 epochs, logging progress every 10 epochs
+        NeuralNetworkTrainer.train(cerebro, training_inputs, training_outputs, 100, 10);
 
         // 4. Save the Model
         ModelManager.saveModel(cerebro, nombreModelo);
@@ -172,6 +177,14 @@ public class Modelo3enRaya {
 
     public Mundo getMundo() {
         return mundo;
+    }
+
+    public String getNombreModelo() {
+        return nombreModelo;
+    }
+
+    public void setNombreModelo(String nombreModelo) {
+        this.nombreModelo = nombreModelo;
     }
 
     public Tablero obtenerTablero(Tablero tablero, Posicion pos) {
