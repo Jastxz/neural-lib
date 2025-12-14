@@ -2,7 +2,6 @@ package org.javig;
 
 import org.javig.nn.NeuralNetwork;
 import org.junit.jupiter.api.Test;
-import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class XORTest {

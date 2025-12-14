@@ -1,7 +1,6 @@
 package org.javig.util;
 
 import org.javig.nn.NeuralNetwork;
-import org.javig.math.Matrix;
 
 import java.util.List;
 

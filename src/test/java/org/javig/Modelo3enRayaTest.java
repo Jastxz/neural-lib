@@ -1,7 +1,11 @@
 package org.javig;
 
+import org.javig.engine.Funciones3enRaya;
+import org.javig.engine.Minimax;
 import org.javig.models.Modelo3enRaya;
 import org.javig.nn.NeuralNetwork;
+import org.javig.tipos.Movimiento;
+import org.javig.tipos.Mundo;
 import org.javig.tipos.Posicion;
 import org.javig.tipos.SmallMatrix;
 import org.javig.tipos.Tablero;
@@ -25,6 +29,9 @@ public class Modelo3enRayaTest {
         // Cargar modelo entrenado
         NeuralNetwork loadedModel = ModelManager.loadModel("modelo3enRaya.nn");
 
+        // Verificamos que todos eligen la misma casilla ganadora/bloqueadora en este
+        // caso determinista
+        // Nota: En este estado (1,2) es el único movimiento correcto.
         int[][] data = {
                 { 2, 1, 1 },
                 { 0, 2, 0 },
@@ -35,9 +42,40 @@ public class Modelo3enRayaTest {
         int moveIndex = ModelManager.predictIndex(loadedModel, input);
         System.out.println(ModelManager.getMejorMovimiento(moveIndex));
         assert ModelManager.getMejorMovimiento(moveIndex).equals(new Posicion(1, 2));
+    }
 
-        // Verificamos que todos eligen la misma casilla ganadora/bloqueadora en este
-        // caso determinista
-        // Nota: En este estado (1,2) es el único movimiento correcto.
+    @Test
+    public void testModeloVsMinimax() {
+
+        for (int i = 0; i < 100; i++) {
+            Modelo3enRaya modelo = new Modelo3enRaya();
+            NeuralNetwork loadedModel = ModelManager.loadModel("modelo3enRaya.nn");
+            Mundo mundo = modelo.getMundo();
+            mundo.setMarca(Funciones3enRaya.marcaMaquina3enRaya(mundo.getMarca()));
+            mundo = simulaPartida(mundo, loadedModel, modelo);
+            assert !Funciones3enRaya.hay3EnRaya(mundo.getMovimiento().getTablero());
+        }
+
+    }
+
+    private Mundo simulaPartida(Mundo mundo, NeuralNetwork loadedModel, Modelo3enRaya modelo) {
+        while (true) {
+            Tablero movimientoMinimax = Minimax.negamax(mundo);
+            System.out.println("Movimiento Minimax: \n" + movimientoMinimax.getMatrix());
+            if (Funciones3enRaya.fin3enRaya(movimientoMinimax)) {
+                System.out.println("Fin del juego");
+                break;
+            }
+            Posicion posicionModelo = ModelManager.getMejorMovimiento(ModelManager.predictIndex(loadedModel,
+                    modelo.tabularToInput(movimientoMinimax)));
+            Tablero movimientoModelo = modelo.obtenerTablero(movimientoMinimax, posicionModelo);
+            System.out.println("Movimiento Modelo: \n" + movimientoModelo.getMatrix());
+            if (Funciones3enRaya.fin3enRaya(movimientoModelo)) {
+                System.out.println("Fin del juego");
+                break;
+            }
+            mundo.setMovimiento(new Movimiento(movimientoModelo, posicionModelo));
+        }
+        return mundo;
     }
 }

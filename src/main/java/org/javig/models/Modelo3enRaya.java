@@ -47,7 +47,7 @@ public class Modelo3enRaya {
 
         // 3. Train using the Utility Class
         // Trains for 400 epochs, logging progress every 50 epochs
-        NeuralNetworkTrainer.train(cerebro, training_inputs, training_outputs, 400, 50);
+        NeuralNetworkTrainer.train(cerebro, training_inputs, training_outputs, 500, 50);
 
         // 4. Save the Model
         ModelManager.saveModel(cerebro, nombreModelo);
@@ -57,7 +57,7 @@ public class Modelo3enRaya {
 
         // 6. Predict using the loaded model
         System.out.println("\nPredictions from loaded model:");
-        for (int i = 0; i < training_inputs.length; i += 2000) {
+        for (int i = 0; i < training_inputs.length; i += 200) {
             List<Double> output = cerebro.feedForward(training_inputs[i]);
             System.out.println(
                     "Input: " + FormatClassToString.formatDoubleArray(training_inputs[i]) + " -> Output: "
@@ -73,49 +73,34 @@ public class Modelo3enRaya {
 
         for (int[][] estado : todasLasPosibilidades) {
             Tablero tablero = new Tablero(new SmallMatrix(estado));
-            mundo.setMovimiento(new Movimiento(tablero, new Posicion(0, 0)));
 
-            if (Funciones3enRaya.fin3enRaya(tablero)) {
-                continue;
-                // double[] input = tabularToInput(tablero);
-                // inputs.add(input);
-                // outputs.add(input);
-            } else {
-                while (!Funciones3enRaya.fin3enRaya(tablero)) {
-                    // 1. Get the IDEAL move from Minimax (Teacher)
-                    // We must ensure 'mundo' has the current board state for Minimax to calculate
-                    // correctly
-                    mundo.getMovimiento().setTablero(tablero);
+            // 1. Get the IDEAL move from Minimax (Teacher)
+            // We must ensure 'mundo' has the current board state for Minimax to calculate
+            // correctly
+            mundo.getMovimiento().setTablero(tablero);
 
-                    // Note: Minimax.negamax usually returns the Resulting Board, not the move.
-                    // It calculates best move for whoever turn it is in 'mundo'
-                    Tablero bestNextState = Minimax.negamax(mundo);
+            // Note: Minimax.negamax usually returns the Resulting Board, not the move.
+            // It calculates best move for whoever turn it is in 'mundo'
+            Tablero bestNextState = Minimax.negamax(mundo);
 
-                    if (bestNextState == null)
-                        break;
-
-                    // 2. Record Training Data: (CurrentState -> IdealMove)
-                    Posicion idealMove = obtenerMovimiento(tablero, bestNextState);
-                    if (idealMove != null) {
-                        double[] input = tabularToInput(tablero);
-                        inputs.add(input);
-
-                        double[] target = new double[9];
-                        int index = idealMove.getFila() * 3 + idealMove.getColumna();
-                        target[index] = 1.0;
-                        outputs.add(target);
-
-                        mundo.setMovimiento(new Movimiento(tablero, idealMove));
-                        tablero = bestNextState;
-                    } else {
-                        break;
-                    }
-                }
+            if (bestNextState == null) {
+                break;
             }
 
+            // 2. Record Training Data: (CurrentState -> IdealMove)
+            Posicion idealMove = obtenerMovimiento(tablero, bestNextState);
+            if (idealMove != null) {
+                double[] input = tabularToInput(tablero);
+                inputs.add(input);
+
+                double[] target = new double[9];
+                int index = idealMove.getFila() * 3 + idealMove.getColumna();
+                // FIX: Target should be 1.0 (High activation) so predictIndex (Max) picks it.
+                target[index] = 1.0;
+                outputs.add(target);
+            }
         }
 
-        System.out.println("Total de muestras: " + inputs.size());
         double[][] training_inputs = inputs.toArray(new double[inputs.size()][]);
         double[][] training_outputs = outputs.toArray(new double[outputs.size()][]);
 
@@ -125,40 +110,19 @@ public class Modelo3enRaya {
     public double[] tabularToInput(Tablero tablero) {
         SmallMatrix tableroSmallMatrix = tablero.getMatrix();
         double[] inputs = new double[9];
-
-        int count1 = 0;
-        int count2 = 0;
-
-        // First pass: count pieces to determine turn
-        for (int i = 0; i < tableroSmallMatrix.getRows(); i++) {
-            for (int j = 0; j < tableroSmallMatrix.getCols(); j++) {
-                double valor = tableroSmallMatrix.get(i, j);
-                if (valor == 1)
-                    count1++;
-                else if (valor == 2)
-                    count2++;
-            }
-        }
-
-        // Assuming 1 starts: if counts are equal, it's 1's turn. If 1 has more, it's
-        // 2's turn.
-        int currentTurn = (count1 == count2) ? 1 : 2;
-
-        // Current Player -> 1.0
-        // Opponent -> -1.0
-        // Empty -> 0.0
         for (int i = 0; i < tableroSmallMatrix.getRows(); i++) {
             for (int j = 0; j < tableroSmallMatrix.getCols(); j++) {
                 double valor = tableroSmallMatrix.get(i, j);
                 int index = i * tableroSmallMatrix.getCols() + j;
 
-                if (valor == 0) {
+                // FIX: Normalize inputs for Neural Network (0, 1, -1)
+                // Assuming Tablero inputs are standard 0, 1, 2
+                if (valor == 0)
                     inputs[index] = 0.0;
-                } else if (valor == currentTurn) {
-                    inputs[index] = 1.0; // Me
-                } else {
-                    inputs[index] = -1.0; // Enemy
-                }
+                else if (valor == 1)
+                    inputs[index] = 1.0;
+                else if (valor == 2)
+                    inputs[index] = -1.0; // P2 is -1
             }
         }
 
@@ -168,29 +132,55 @@ public class Modelo3enRaya {
     public List<int[][]> generarTodasLasPosibilidades() {
         List<int[][]> resultado = new ArrayList<>();
         int tamano = 3;
-        int totalCeldas = tamano * tamano;
+        int totalCeldas = tamano * tamano; // 9
         int totalCombinaciones = (int) Math.pow(3, totalCeldas);
-        System.out.println("Total de combinaciones de tablero para 3 en raya: " + totalCombinaciones);
 
         for (int i = 0; i < totalCombinaciones; i++) {
             int[][] matriz = new int[tamano][tamano];
             int valor = i;
+            int count1 = 0;
+            int count2 = 0;
 
             for (int fila = 0; fila < tamano; fila++) {
                 for (int col = 0; col < tamano; col++) {
                     int resto = valor % 3;
-                    matriz[fila][col] = resto - 1; // Convierte 0,1,2 a -1,0,1
+                    // FIX: Use standard game values 0, 1, 2
+                    matriz[fila][col] = resto;
+
+                    if (matriz[fila][col] == 1)
+                        count1++;
+                    else if (matriz[fila][col] == 2)
+                        count2++;
+
                     valor /= 3;
                 }
             }
 
-            resultado.add(matriz);
+            // Valid state check
+            Tablero tablero = new Tablero(new SmallMatrix(matriz));
+            // We want states where it is P2's turn? The user said "use -1".
+            // Since we mapped 2 -> -1 in tabularToInput, P2 is the "-1 player".
+            // P2 moves when P1 has 1 more piece (assuming P1 starts).
+            // So count1 == count2 + 1.
+            if (count1 == count2 + 1 && !Funciones3enRaya.fin3enRaya(tablero)) {
+                resultado.add(matriz);
+            }
         }
 
         return resultado;
     }
 
-    private Posicion obtenerMovimiento(Tablero inicial, Tablero fin) {
+    public Mundo getMundo() {
+        return mundo;
+    }
+
+    public Tablero obtenerTablero(Tablero tablero, Posicion pos) {
+        Tablero nuevoTablero = new Tablero(tablero.getMatrix());
+        nuevoTablero.setValue(pos, mundo.getMarca());
+        return nuevoTablero;
+    }
+
+    public Posicion obtenerMovimiento(Tablero inicial, Tablero fin) {
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
                 if (inicial.getValor(i, j) == 0 && fin.getValor(i, j) != 0) {
@@ -199,17 +189,6 @@ public class Modelo3enRaya {
             }
         }
         return null;
-    }
-
-    private List<Posicion> getMovimientosValidos(Tablero t) {
-        List<Posicion> moves = new ArrayList<>();
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
-                if (t.getValor(i, j) == 0)
-                    moves.add(new Posicion(i, j));
-            }
-        }
-        return moves;
     }
 
 }
