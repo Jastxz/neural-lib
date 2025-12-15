@@ -13,13 +13,13 @@ public class PersistenceTest {
         double[] input = { 1.0, 0.5 };
 
         // Get initial prediction/state
-        double predictionBefore = nn.feedForward(input).get(0);
+        double predictionBefore = nn.feedForward(input)[0];
 
         String filename = "test_model.nn";
         nn.save(filename);
 
         NeuralNetwork loadedNN = NeuralNetwork.load(filename);
-        double predictionAfter = loadedNN.feedForward(input).get(0);
+        double predictionAfter = loadedNN.feedForward(input)[0];
 
         assertEquals(predictionBefore, predictionAfter, 0.0000001, "Prediction should be identical after loading");
 

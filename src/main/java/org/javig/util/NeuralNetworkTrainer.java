@@ -2,8 +2,6 @@ package org.javig.util;
 
 import org.javig.nn.NeuralNetwork;
 
-import java.util.List;
-
 public class NeuralNetworkTrainer {
 
     public static void train(NeuralNetwork nn, double[][] inputs, double[][] targets, int epochs, int logInterval) {
@@ -30,11 +28,11 @@ public class NeuralNetworkTrainer {
     private static double calculateMSE(NeuralNetwork nn, double[][] inputs, double[][] targets) {
         double sumError = 0;
         for (int i = 0; i < inputs.length; i++) {
-            List<Double> output = nn.feedForward(inputs[i]);
+            double[] output = nn.feedForward(inputs[i]);
             double[] target = targets[i];
 
             for (int k = 0; k < target.length; k++) {
-                double error = target[k] - output.get(k);
+                double error = target[k] - output[k];
                 sumError += error * error;
             }
         }

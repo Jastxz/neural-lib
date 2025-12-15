@@ -20,12 +20,12 @@ public class XORTest {
 
         // Validation with relaxed tolerance
         // 0,0 -> 0
-        assertTrue(nn.feedForward(inputs[0]).get(0) < 0.1);
+        assertTrue(nn.feedForward(inputs[0])[0] < 0.1);
         // 0,1 -> 1
-        assertTrue(nn.feedForward(inputs[1]).get(0) > 0.9);
+        assertTrue(nn.feedForward(inputs[1])[0] > 0.9);
         // 1,0 -> 1
-        assertTrue(nn.feedForward(inputs[2]).get(0) > 0.9);
+        assertTrue(nn.feedForward(inputs[2])[0] > 0.9);
         // 1,1 -> 0
-        assertTrue(nn.feedForward(inputs[3]).get(0) < 0.1);
+        assertTrue(nn.feedForward(inputs[3])[0] < 0.1);
     }
 }

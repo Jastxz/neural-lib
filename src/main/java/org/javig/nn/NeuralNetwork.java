@@ -40,7 +40,7 @@ public class NeuralNetwork implements Serializable {
         this.activation = activation;
     }
 
-    public List<Double> feedForward(double[] inputArray) {
+    public double[] feedForward(double[] inputArray) {
         Matrix current = Matrix.fromArray(inputArray);
 
         for (int i = 0; i < weights.size(); i++) {
@@ -49,11 +49,7 @@ public class NeuralNetwork implements Serializable {
             current.map(activation.function);
         }
 
-        double[] outArr = current.toArray();
-        List<Double> output = new ArrayList<>();
-        for (double d : outArr)
-            output.add(d);
-        return output;
+        return current.toArray();
     }
 
     public void train(double[] inputArray, double[] targetArray) {

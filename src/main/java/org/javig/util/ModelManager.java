@@ -36,23 +36,44 @@ public class ModelManager {
     }
 
     /**
-     * Returns the index of the neuron with the highest activation value.
-     * Useful for classification problems (e.g. choosing a move in Tic-Tac-Toe).
+     * Devuelve el índice de la neurona con el valor de activación más alto.
+     * Útil para problemas de clasificación (ej. elegir un movimiento en 3 en Raya).
      */
     public static int predictIndex(NeuralNetwork nn, double[] input) {
-        List<Double> output = nn.feedForward(input);
+        double[] output = nn.feedForward(input);
         int maxIndex = -1;
         double maxValue = Double.NEGATIVE_INFINITY;
 
-        for (int i = 0; i < output.size(); i++) {
-            if (output.get(i) > maxValue) {
-                maxValue = output.get(i);
+        for (int i = 0; i < output.length; i++) {
+            if (output[i] > maxValue) {
+                maxValue = output[i];
                 maxIndex = i;
             }
         }
         return maxIndex;
     }
 
+    public static Posicion getMejorMovimiento(double[] output) {
+        int mejorIndice = 0;
+        double maxValor = -1.0;
+
+        for (int i = 0; i < output.length; i++) {
+            if (output[i] > maxValor) {
+                maxValor = output[i];
+                mejorIndice = i;
+            }
+        }
+
+        int fila = mejorIndice / 3;
+        int columna = mejorIndice % 3;
+
+        return new Posicion(fila, columna);
+    }
+
+    /*
+     * Método heredado para compatibilidad si alguien pasa List, aunque se
+     * recomienda usar double[]
+     */
     public static Posicion getMejorMovimiento(List<Double> output) {
         int mejorIndice = 0;
         double maxValor = -1.0;
