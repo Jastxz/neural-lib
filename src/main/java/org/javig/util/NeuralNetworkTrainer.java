@@ -18,11 +18,10 @@ public class NeuralNetworkTrainer {
             if (i % logInterval == 0 || i == epochs) {
                 double mse = calculateMSE(nn, inputs, targets);
                 System.out.printf("Epoch %d/%d - Error (MSE): %.6f%n", i, epochs, mse);
-                System.out.println("Time taken: " + (System.currentTimeMillis() - startTime) + "ms");
+                long milis = (System.currentTimeMillis() - startTime);
+                System.out.println("Time taken: " + milis + "ms, " + milis / 1000 + "s, " + milis / 60000 + "min");
             }
         }
-        long endTime = System.currentTimeMillis();
-        System.out.println("Training completed. Time taken: " + (endTime - startTime) + "ms");
     }
 
     private static double calculateMSE(NeuralNetwork nn, double[][] inputs, double[][] targets) {

@@ -187,12 +187,6 @@ public class Modelo3enRaya {
         this.nombreModelo = nombreModelo;
     }
 
-    public Tablero obtenerTablero(Tablero tablero, Posicion pos) {
-        Tablero nuevoTablero = new Tablero(tablero.getMatrix());
-        nuevoTablero.setValue(pos, mundo.getMarca());
-        return nuevoTablero;
-    }
-
     public Posicion obtenerMovimiento(Tablero inicial, Tablero fin) {
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {

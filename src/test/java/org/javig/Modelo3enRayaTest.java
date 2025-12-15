@@ -67,7 +67,7 @@ public class Modelo3enRayaTest {
             }
             Posicion posicionModelo = ModelManager.getMejorMovimiento(ModelManager.predictIndex(loadedModel,
                     modelo.tabularToInput(movimientoMinimax)));
-            Tablero movimientoModelo = modelo.obtenerTablero(movimientoMinimax, posicionModelo);
+            Tablero movimientoModelo = ModelManager.obtenerTablero(movimientoMinimax, posicionModelo, mundo.getMarca());
             if (Funciones3enRaya.fin3enRaya(movimientoModelo)) {
                 break;
             }

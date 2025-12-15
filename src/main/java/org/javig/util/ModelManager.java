@@ -5,7 +5,9 @@ import org.javig.nn.NeuralNetwork;
 import java.io.IOException;
 import java.util.List;
 
+import org.javig.tipos.Mundo;
 import org.javig.tipos.Posicion;
+import org.javig.tipos.Tablero;
 
 public class ModelManager {
 
@@ -96,5 +98,11 @@ public class ModelManager {
         int columna = mejorIndice % 3;
 
         return new Posicion(fila, columna);
+    }
+
+    public static Tablero obtenerTablero(Tablero tablero, Posicion pos, int marca) {
+        Tablero nuevoTablero = new Tablero(tablero.getMatrix());
+        nuevoTablero.setValue(pos, marca);
+        return nuevoTablero;
     }
 }
