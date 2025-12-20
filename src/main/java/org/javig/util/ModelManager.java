@@ -5,7 +5,6 @@ import org.javig.nn.NeuralNetwork;
 import java.io.IOException;
 import java.util.List;
 
-import org.javig.tipos.Mundo;
 import org.javig.tipos.Posicion;
 import org.javig.tipos.Tablero;
 
@@ -56,6 +55,10 @@ public class ModelManager {
     }
 
     public static Posicion getMejorMovimiento(double[] output) {
+        return getMejorMovimiento(output, 3);
+    }
+
+    public static Posicion getMejorMovimiento(double[] output, int columnas) {
         int mejorIndice = 0;
         double maxValor = -1.0;
 
@@ -66,8 +69,8 @@ public class ModelManager {
             }
         }
 
-        int fila = mejorIndice / 3;
-        int columna = mejorIndice % 3;
+        int fila = mejorIndice / columnas;
+        int columna = mejorIndice % columnas;
 
         return new Posicion(fila, columna);
     }
@@ -94,8 +97,12 @@ public class ModelManager {
     }
 
     public static Posicion getMejorMovimiento(int mejorIndice) {
-        int fila = mejorIndice / 3;
-        int columna = mejorIndice % 3;
+        return getMejorMovimiento(mejorIndice, 3);
+    }
+
+    public static Posicion getMejorMovimiento(int mejorIndice, int columnas) {
+        int fila = mejorIndice / columnas;
+        int columna = mejorIndice % columnas;
 
         return new Posicion(fila, columna);
     }
