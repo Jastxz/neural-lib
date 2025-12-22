@@ -1,0 +1,11 @@
+./org/javig/math/Matrix.java
+./org/javig/Main.java
+./org/javig/nn/Activation.java
+./org/javig/nn/NeuralNetwork.java
+./org/javig/models/TempValidation.java
+./org/javig/models/Modelo3enRaya.java
+./org/javig/models/ModeloGatos.java
+./org/javig/util/DataContainer.java
+./org/javig/util/NeuralNetworkTrainer.java
+./org/javig/util/FormatClassToString.java
+./org/javig/util/ModelManager.java
