@@ -93,8 +93,6 @@ public class ModeloGatos {
 
     /**
      * Genera datos simulando partidas completas usando Minimax para ambos bandos.
-     * 
-     * @param numGames Número de partidas a simular.
      */
     public DataContainer generateTrainingData() {
         if (posiblesEstados.size() == 0) {

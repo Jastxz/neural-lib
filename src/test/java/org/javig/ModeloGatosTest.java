@@ -292,24 +292,9 @@ public class ModeloGatosTest {
 
                 int val = tablero.getValor(r, c);
                 // Check if value matches mark.
-                // Note: For Cats, there are multiple IDs. We should check logic.
-                // Assuming mundo.getMarca() returns the generic 'One Cat' mark or we handle
-                // specific cat IDs?
-                // In generic logic, often checking if (val == marca) is strict.
-                // But Cats might use {1,3,5,7}.
-                // If marca is generic ID (like 2), we might mismatch.
-                // However, let's assume standard behavior first.
-
-                // Mouse is 9. Cats are Odd?
-                // Let's rely on simple equality or 'isOwnedBy' if we could see Util.
-                // Fallback: If marca is Mouse (9), check == 9.
-                // If marca is NOT Mouse, assume any odd number (1,3,5,7) is a cat?
 
                 boolean isMatch = (val == marca);
                 if (!isMatch && marca != 9 && val > 0 && val % 2 != 0 && val != 9) {
-                    // Heuristic: If we are playing as Cats (marca != 9) and we found an odd piece
-                    // (Cat), assume ownership?
-                    // Dangerous but likely correct given generic cat AI.
                     isMatch = true;
                 }
 
