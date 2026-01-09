@@ -27,31 +27,25 @@ import org.javig.util.Util;
 
 public class ModeloGatos {
     private NeuralNetwork cerebro;
-    private String nombreModeloBasico = "modeloGatosBasico.nn";
-    private String nombreModeloNormal = "modeloGatosNormal.nn";
-    private String nombreModeloAvanzado = "modeloGatosAvanzado.nn";
-    private String nombreModeloExperto = "modeloGatosExperto.nn";
+    private String nombreModelo = "modeloGatos.nn";
     private Mundo mundo;
     private Posicion posMouseInicial = new Posicion(0, 2); // Posición inicial típica del ratón si no se define otra
     private Tablero tablero = FuncionesGato.inicialGato(posMouseInicial);
     private Movimiento movimientoInicial = new Movimiento(tablero, posMouseInicial);
     private String juego = Util.juegoGato;
-    private int dificultad = 4; // Ajustado para un tiempo razonable en Gatos
-    private int profundidadBasico = 2;
-    private int profundidad = 4;
-    private int profundidadAvanzado = 6;
-    private int profundidadExperto = 8;
+    private int dificultad = 4;
+    private int profundidad = 10;
     private int marcaRatón = FuncionesGato.nombreRaton;
     private int turno = 1;
     private boolean esMaquina = true;
     private List<Movimiento> posiblesEstados = new ArrayList<>();
-    private int maxEstados = 10000; // Safety limit
+    private int maxEstados = 200; // Safety limit
 
     public ModeloGatos() {
         // Input: 8x8 + 1 (turno) = 65
-        // Hidden: 128 (arbitrario, suficiente para capturar lógica básica)
+        // Hidden: 64+64+1(turno) (arbitrario, suficiente para capturar lógica básica)
         // Output: 8x8 = 64 (probabilidad de mover a cada casilla)
-        cerebro = new NeuralNetwork(65, 128, 64);
+        cerebro = new NeuralNetwork(65, 129, 64);
         mundo = new Mundo(movimientoInicial, juego, dificultad, profundidad, marcaRatón, turno, esMaquina);
     }
 
@@ -61,12 +55,12 @@ public class ModeloGatos {
     }
 
     public ModeloGatos(List<Movimiento> posiblesEstados) {
-        cerebro = new NeuralNetwork(65, 128, 64);
+        cerebro = new NeuralNetwork(65, 129, 64);
         this.posiblesEstados = posiblesEstados;
         mundo = new Mundo(movimientoInicial, juego, dificultad, profundidad, marcaRatón, turno, esMaquina);
     }
 
-    public void entrenar(String nombreModelo) {
+    public void entrenar() {
         System.out.println("Generando datos de entrenamiento via simulación Minimax...");
         long start = System.currentTimeMillis();
         // Generamos datos de entrenamiento
@@ -76,8 +70,11 @@ public class ModeloGatos {
         double[][] training_outputs = data.getOutputs();
         System.out.println("Datos generados exitosamente. Total de muestras: " + training_inputs.length);
 
+        int epocas = 500;
+        int registro = epocas / 10;
+
         // Entrenar
-        NeuralNetworkTrainer.train(cerebro, training_inputs, training_outputs, 100, 10);
+        NeuralNetworkTrainer.train(cerebro, training_inputs, training_outputs, epocas, registro);
 
         // Guardar
         ModelManager.saveModel(cerebro, nombreModelo);
@@ -94,100 +91,160 @@ public class ModeloGatos {
     /**
      * Genera datos simulando partidas completas usando Minimax para ambos bandos.
      */
+    /**
+     * Genera datos simulando 100 partidas completas.
+     * En cada paso, evalúa TODOS los movimientos posibles con Minimax para
+     * identificar
+     * múltiples jugadas óptimas (Multi-Target Training).
+     */
     public DataContainer generateTrainingData() {
-        if (posiblesEstados.size() == 0) {
-            System.out.println("Generando todos los estados posibles para el entrenamiento...");
-            posiblesEstados = generarTodosLosEstados();
-        }
-        int totalEstados = posiblesEstados.size();
+        System.out.println("Iniciando entrenamiento Multi-Target con simulación de partidas...");
 
-        System.out.println("Generando datos de entrenamiento para " + totalEstados + " estados iniciales...");
-        long startSimulationTime = System.currentTimeMillis();
+        List<TrainingPair> trainingPairs = new ArrayList<>();
+        AtomicInteger gamesPlayed = new AtomicInteger(0);
+        int totalPartidas = 100;
 
-        // Contador atómico para progreso
-        AtomicInteger procesados = new AtomicInteger(0);
+        // Ejecutamos las partidas en paralelo para acelerar
+        List<TrainingPair> collectedPairs = java.util.stream.IntStream.range(0, totalPartidas)
+                .parallel()
+                .mapToObj(gameIdx -> {
+                    List<TrainingPair> gamePairs = new ArrayList<>();
+                    Mundo mundoSim = new Mundo(this.mundo);
+                    // Alternar quien empieza para variedad, aunque en Gatos suele empezar Ratón (1)
+                    // o Gatos (2)
+                    // Vamos a mantener la config standard pero quizás aleatorizar un poco la
+                    // apertura si fuera necesario.
+                    // Por ahora, setup standard.
 
-        // Procesar en paralelo y recolectar pares de entrenamiento
-        List<TrainingPair> trainingPairs = posiblesEstados.parallelStream()
-                .flatMap(movimiento -> {
-                    List<TrainingPair> pairs = new ArrayList<>(40);
+                    // Reset tablero
+                    Tablero tableroActual = FuncionesGato.inicialGato(posMouseInicial);
+                    mundoSim.getMovimiento().setTablero(tableroActual);
+                    // Profundidad 4 para acelerar el proceso y que no busque a profundidad 8.
+                    mundoSim.setProfundidad(4);
 
-                    Mundo mundo = new Mundo(this.mundo);
-                    Tablero estado = movimiento.getTablero();
+                    // Determinar turno inicial (usualmente 1=Ratón)
+                    int currentTurn = 1;
+                    int currentBand = FuncionesGato.nombresGatos[0]; // Oponente (para Minimax)
 
-                    // Encontrar la posición del ratón en el estado actual
-                    Posicion posRaton = encontrarRaton(estado);
-                    if (posRaton == null) {
-                        System.err.println("ADVERTENCIA: No se encontró el ratón en el estado inicial");
-                        return pairs.stream();
-                    }
-
-                    // Determinar quién mueve en este turno
-                    // Empezamos asumiendo que el ratón mueve primero
-                    int currentTurn = 1; // Ratón mueve primero
-                    // IMPORTANTE: Minimax necesita la marca del OPONENTE
-                    // Si el ratón va a mover, pasamos la marca de un gato a Minimax
-                    int currentBand = FuncionesGato.nombresGatos[0]; // Oponente del ratón
-
-                    // Límite de movimientos para evitar bucles infinitos
+                    boolean isGameOver = false;
                     int moves = 0;
-                    boolean isGameOver = FuncionesGato.finGato(estado);
-
-                    if (isGameOver) {
-                        // Este estado ya es final, no generar pares
-                        return pairs.stream();
-                    }
 
                     while (!isGameOver && moves < 200) {
-                        // Actualizar posición del ratón
-                        posRaton = encontrarRaton(estado);
-                        if (posRaton == null) {
-                            break;
-                        }
+                        // 1. Generar todos los movimientos legales desde este estado
+                        // Necesitamos saber de quién es el turno para generar sus movimientos.
+                        // Si turno=1 (Ratón), genera movs de Ratón.
+                        // Si turno=2 (Gatos), genera movs de Gatos.
 
-                        mundo.setMovimiento(new Movimiento(estado, posRaton));
-                        mundo.setMarca(currentBand);
-                        mundo.setTurno(currentTurn);
+                        // Vamos a usar la lógica interna 'generarMovimientosLegales' replicada o
+                        // adaptada.
+                        List<Movimiento> legalMoves = generarMovimientosLegales(tableroActual, currentTurn);
 
-                        Tablero bestNextState = Minimax.negamax(mundo);
-                        if (bestNextState == null)
+                        if (legalMoves.isEmpty())
                             break;
 
-                        // Determinar quién realmente movió basándose en el resultado
-                        // Si currentTurn es 1 (ratón), entonces el ratón movió
-                        int quienMovio = (currentTurn == 1) ? FuncionesGato.nombreRaton : FuncionesGato.nombresGatos[0];
+                        // 2. Evaluar cada rama
+                        // Para cada movimiento candidato, simulamos que ocurre y preguntamos a Minimax
+                        // "¿Cuánto vale este futuro?"
+                        double[] branchScores = new double[legalMoves.size()];
+                        Tablero[] outcomes = new Tablero[legalMoves.size()];
 
-                        Posicion moveDest = obtenerMovimiento(estado, bestNextState, quienMovio);
-                        if (moveDest != null) {
-                            int turnoModelo = currentTurn;
-                            double[] inputVec = tabularToInput(estado, turnoModelo);
+                        // Pre-calcular scores
+                        for (int i = 0; i < legalMoves.size(); i++) {
+                            Movimiento cand = legalMoves.get(i);
+                            Tablero nextState = cand.getTablero();
 
-                            double[] target = new double[64];
-                            int idx = moveDest.getFila() * 8 + moveDest.getColumna();
-                            target[idx] = 1.0;
+                            // Preparar mundo para Minimax (preguntar valor del estado 'nextState')
+                            Mundo mCopy = new Mundo(mundoSim);
+                            mCopy.getMovimiento().setTablero(nextState);
+                            // El turno pasa al oponente
+                            int nextTurn = (currentTurn == 1) ? 2 : 1;
+                            int nextBand = FuncionesGato.marcaMaquinaGato(currentBand);
+                            mCopy.setTurno(nextTurn);
+                            mCopy.setMarca(nextBand); // La marca que 'juega' en Minimax es la del turno activo
 
-                            pairs.add(new TrainingPair(inputVec, target));
+                            // Si el juego ya acabó en nextState, evaluamos directo
+                            if (FuncionesGato.finGato(nextState)) {
+                                branchScores[i] = evaluarEstadoFinal(nextState);
+                                outcomes[i] = nextState;
+                            } else {
+                                // Ejecutar Minimax desde nextState
+                                // Minimax devuelve el MEJOR estado final alcanzable desde ahí.
+                                Tablero bestUltimateState = Minimax.negamax(mCopy);
+                                if (bestUltimateState != null) {
+                                    branchScores[i] = evaluarEstadoFinal(bestUltimateState);
+                                    outcomes[i] = bestUltimateState;
+                                } else {
+                                    branchScores[i] = -9999; // Error/Unknown
+                                }
+                            }
                         }
 
-                        estado = bestNextState;
-                        isGameOver = FuncionesGato.finGato(estado);
-                        currentBand = FuncionesGato.marcaMaquinaGato(currentBand);
-                        currentTurn = (currentTurn == 1) ? 2 : 1;
-                        moves++;
+                        // 3. Identificar el MEJOR score para el jugador actual
+                        // Ratón (1) quiere MAXIMIZAR score (ej. llegar a fila 0, scores altos).
+                        // Gatos (2) quieren MINIMIZAR score (encerrar ratón, scores bajos o negativos).
+
+                        double bestScore;
+                        if (currentTurn == 1) { // Ratón
+                            bestScore = -Double.MAX_VALUE;
+                            for (double s : branchScores)
+                                if (s > bestScore)
+                                    bestScore = s;
+                        } else { // Gatos
+                            bestScore = Double.MAX_VALUE;
+                            for (double s : branchScores)
+                                if (s < bestScore)
+                                    bestScore = s;
+                        }
+
+                        // 4. Construir Target Vector
+                        double[] target = new double[64];
+                        boolean anyBestFound = false;
+                        List<Integer> bestMoveIndices = new ArrayList<>();
+
+                        for (int i = 0; i < legalMoves.size(); i++) {
+                            // Usamos una pequeña tolerancia para comparar doubles
+                            if (Math.abs(branchScores[i] - bestScore) < 0.001) {
+                                Posicion dest = legalMoves.get(i).getPos();
+                                int idx = dest.getFila() * 8 + dest.getColumna();
+                                target[idx] = 1.0;
+                                bestMoveIndices.add(i);
+                                anyBestFound = true;
+                            }
+                        }
+
+                        if (anyBestFound) {
+                            gamePairs.add(new TrainingPair(tabularToInput(tableroActual, currentTurn), target));
+                        }
+
+                        // 5. Avanzar la partida
+                        // Elegimos uno de los mejores movimientos al azar para explorar variantes
+                        // óptimas
+                        // O a veces uno sub-óptimo (epsilon-greedy) para robusticidad?
+                        // El usuario pidió "aprender de 100 partidas", asumimos partidas 'buenas'.
+                        // Elijamos uno de los mejores al azar.
+                        if (!bestMoveIndices.isEmpty()) {
+                            int chosenIdx = bestMoveIndices.get((int) (Math.random() * bestMoveIndices.size()));
+                            tableroActual = legalMoves.get(chosenIdx).getTablero();
+                            isGameOver = FuncionesGato.finGato(tableroActual);
+
+                            // Switch turns
+                            currentBand = FuncionesGato.marcaMaquinaGato(currentBand);
+                            currentTurn = (currentTurn == 1) ? 2 : 1;
+                            moves++;
+                        } else {
+                            break; // No moves?
+                        }
                     }
 
-                    // Actualizar progreso
-                    int count = procesados.incrementAndGet();
-                    if (count % 100 == 0) {
-                        long elapsed = System.currentTimeMillis() - startSimulationTime;
-                        System.out.println(String.format(
-                                "Progreso: %d/%d estados | Tiempo: %.2f min | Pares generados: %d",
-                                count, totalEstados, elapsed / 60000.0, pairs.size()));
-                    }
-
-                    return pairs.stream();
+                    System.out.println("Partidas simuladas: " + gamesPlayed.incrementAndGet());
+                    System.out.println(
+                            "Partida " + gameIdx + " simulada. Movimientos: " + moves + " Pares: " + gamePairs.size());
+                    return gamePairs.stream();
                 })
+                .flatMap(java.util.function.Function.identity())
                 .collect(Collectors.toList());
+
+        trainingPairs.addAll(collectedPairs);
 
         System.out.println("Generación completada. Total de pares de entrenamiento: " + trainingPairs.size());
 
@@ -202,7 +259,87 @@ public class ModeloGatos {
         return new DataContainer(inputs, outputs);
     }
 
-    public double[] tabularToInput(Tablero tablero, int turno) {
+    // Helper para generar movimientos (adaptado de lógica existente)
+    private List<Movimiento> generarMovimientosLegales(Tablero t, int turno) {
+        List<Movimiento> lista = new ArrayList<>();
+        // Recorrer tablero
+        for (int f = 0; f < 8; f++) {
+            for (int c = 0; c < 8; c++) {
+                int val = t.getValor(f, c);
+                boolean esMio = false;
+                if (turno == 1 && val == FuncionesGato.nombreRaton)
+                    esMio = true;
+                else if (turno == 2 && val != 0 && val != FuncionesGato.nombreRaton)
+                    esMio = true; // Gato
+
+                if (esMio) {
+                    // Generar adyacentes
+                    int[][] dirs;
+                    if (turno == 1)
+                        dirs = new int[][] { { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } }; // Ratón 4 direcc
+                    else
+                        dirs = new int[][] { { -1, -1 }, { -1, 1 } }; // Gatos solo suben (fila disminuye? Dep.
+                                                                      // orientación)
+                    // NOTA: En este proyecto, fila 0 es arriba, 7 abajo.
+                    // Ratón empieza en 0 (arriba) y quiere bajar? O al revés?
+                    // FuncionesGato.inicialGato pone Ratón en (0,2).
+                    // Gatos en filas 5,6,7?
+                    // Revisando setup: posMouseInicial = (0, 2).
+                    // Usualmente Ratón quiere llegar al otro lado (fila 7).
+                    // Gatos suben (fila decrece).
+                    // Si Ratón está en 0, quiere ir a 7 -> dirs {1,-1}, {1,1} (y hacia atrás tb?)
+                    // "Ratón mueve en diagonal todas direcciones". Sí.
+
+                    // Ajuste Gatos: dirs {{-1,-1}, {-1,1}} -> Fila disminuye (van hacia 0).
+                    // Ajuste Ratón: dirs todas.
+
+                    for (int[] d : dirs) {
+                        int nf = f + d[0];
+                        int nc = c + d[1];
+                        if (nf >= 0 && nf < 8 && nc >= 0 && nc < 8 && (nf + nc) % 2 == 0) { // Casilla válida tablero
+                            if (t.getValor(nf, nc) == 0) {
+                                Tablero nuevo = new Tablero(t.getMatrix().copia());
+                                nuevo.setValue(nf, nc, val);
+                                nuevo.setValue(f, c, 0);
+                                lista.add(new Movimiento(nuevo, new Posicion(nf, nc)));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return lista;
+    }
+
+    // Evalúa un estado final desde la perspectiva numérica
+    // Alto = Bueno para Ratón (Ganar, avanzar)
+    // Bajo = Bueno para Gatos (Encerrar, ganar)
+    private double evaluarEstadoFinal(Tablero t) {
+        // Usamos FuncionesGato.evalua si es posible, o heurística simple
+        // Aquí necesito acceso a la heurística de 'Minimax'.
+        // Si no la tengo, uso una simplificada:
+
+        // 1. Ganó Ratón? (Llegó a fila 7)
+        for (int c = 0; c < 8; c++)
+            if (t.getValor(7, c) == FuncionesGato.nombreRaton)
+                return 1000.0;
+
+        // 2. Ganó Gatos? (Ratón encerrado).
+        // finGato devuelve true si ratón llegó o encerrado.
+        // Si finGato es true y ratón no está en fila 7 -> Gatos ganaron.
+        if (FuncionesGato.finGato(t))
+            return -1000.0;
+
+        // 3. Juego no terminado (Minimax depth limit reached?)
+        // Heurística: Fila del ratón (cuanto más alta mejor para él)
+        Posicion pR = encontrarRaton(t);
+        if (pR != null)
+            return pR.getFila() * 10; // 0..70
+
+        return 0;
+    }
+
+    public static double[] tabularToInput(Tablero tablero, int turno) {
         SmallMatrix matrix = tablero.getMatrix();
         double[] inputs = new double[65];
         for (int i = 0; i < 8; i++) {
@@ -407,36 +544,12 @@ public class ModeloGatos {
         this.mundo = mundo;
     }
 
-    public String getNombreModeloBasico() {
-        return nombreModeloBasico;
+    public String getNombreModelo() {
+        return nombreModelo;
     }
 
-    public String getNombreModeloNormal() {
-        return nombreModeloNormal;
-    }
-
-    public String getNombreModeloAvanzado() {
-        return nombreModeloAvanzado;
-    }
-
-    public String getNombreModeloExperto() {
-        return nombreModeloExperto;
-    }
-
-    public int getProfundidadBasico() {
-        return profundidadBasico;
-    }
-
-    public int getProfundidadNormal() {
+    public int getProfundidad() {
         return profundidad;
-    }
-
-    public int getProfundidadAvanzado() {
-        return profundidadAvanzado;
-    }
-
-    public int getProfundidadExperto() {
-        return profundidadExperto;
     }
 
     public void setProfundidad(int profundidad) {

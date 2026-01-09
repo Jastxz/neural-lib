@@ -2,6 +2,7 @@ package org.javig;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
 import org.javig.engine.FuncionesGato;
@@ -19,76 +20,37 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class ModeloGatosTest {
-    ModeloGatos modeloBasico;
-    ModeloGatos modeloNormal;
-    ModeloGatos modeloAvanzado;
     ModeloGatos modeloExperto;
 
     @BeforeEach
     void setUp() {
-        modeloBasico = new ModeloGatos();
-        modeloBasico.setProfundidad(modeloBasico.getProfundidadBasico());
-
-        modeloNormal = new ModeloGatos(modeloBasico.getPosiblesEstados());
-        modeloNormal.setProfundidad(modeloNormal.getProfundidadNormal());
-
-        modeloAvanzado = new ModeloGatos(modeloBasico.getPosiblesEstados());
-        modeloAvanzado.setProfundidad(modeloAvanzado.getProfundidadAvanzado());
-
-        modeloExperto = new ModeloGatos(modeloBasico.getPosiblesEstados());
-        modeloExperto.setProfundidad(modeloExperto.getProfundidadExperto());
+        modeloExperto = new ModeloGatos();
     }
 
     @Test
     public void testEntrenar() {
-        // Validation that training runs without error
-
         long start = System.currentTimeMillis();
-        // Basico
-        modeloBasico.entrenar(modeloBasico.getNombreModeloBasico());
-        System.out.println("Entrenamiento finalizado para " + modeloBasico.getNombreModeloBasico() + "\n");
-
-        // Normal
-        modeloNormal.entrenar(modeloNormal.getNombreModeloNormal());
-        System.out.println("Entrenamiento finalizado para " + modeloNormal.getNombreModeloNormal() + "\n");
-
-        // Avanzado
-        modeloAvanzado.entrenar(modeloAvanzado.getNombreModeloAvanzado());
-        System.out.println("Entrenamiento finalizado para " + modeloAvanzado.getNombreModeloAvanzado() + "\n");
-
-        // Experto
-        modeloExperto.entrenar(modeloExperto.getNombreModeloExperto());
-        System.out.println("Entrenamiento finalizado para " + modeloExperto.getNombreModeloExperto() + "\n");
+        modeloExperto.entrenar();
+        System.out.println("Entrenamiento finalizado para " + modeloExperto.getNombreModelo() + "\n");
         long end = System.currentTimeMillis();
         System.out.println("Tiempo total de entrenamiento: " + (end - start) / 3600000.0 + " horas");
     }
 
     @Test
     public void testModeloVsMinimax() {
-        NeuralNetwork loadedModelBasico = ModelManager.loadModel(modeloBasico.getNombreModeloBasico());
-        NeuralNetwork loadedModelNormal = ModelManager.loadModel(modeloNormal.getNombreModeloNormal());
-        NeuralNetwork loadedModelAvanzado = ModelManager.loadModel(modeloAvanzado.getNombreModeloAvanzado());
-        NeuralNetwork loadedModelExperto = ModelManager.loadModel(modeloExperto.getNombreModeloExperto());
+        NeuralNetwork loadedModelExperto = ModelManager.loadModel(modeloExperto.getNombreModelo());
 
         int numPartidas = 100;
-
-        // Run simulations for each model sequentially, but parallelize games within
-        // each model
-        simulaModeloVsMinimax("Básico", loadedModelBasico, modeloBasico,
-                numPartidas);
-
-        simulaModeloVsMinimax("Normal", loadedModelNormal, modeloNormal,
-                numPartidas);
-        simulaModeloVsMinimax("Avanzado", loadedModelAvanzado, modeloAvanzado,
-                numPartidas);
-
-        simulaModeloVsMinimax("Experto", loadedModelExperto, modeloExperto,
+        simulaModeloVsMinimax(loadedModelExperto, modeloExperto,
                 numPartidas);
     }
 
-    private ResultadoSimulacion simulaModeloVsMinimax(String nombreModelo, NeuralNetwork loadedModel,
+    private ResultadoSimulacion simulaModeloVsMinimax(NeuralNetwork loadedModel,
             ModeloGatos modelo, int numPartidas) {
         // Use parallelStream to parallelize games for this model
+        AtomicInteger gamesWinCatsModel = new AtomicInteger(0);
+        AtomicInteger gamesCatsModel = new AtomicInteger(0);
+        AtomicInteger gameNumber = new AtomicInteger(0);
         long start = System.currentTimeMillis();
         List<String> resultados = IntStream.range(0, numPartidas)
                 .parallel()
@@ -100,15 +62,22 @@ public class ModeloGatosTest {
                     }
                     String ladoModelo = i % 2 == 0 ? "Gatos" : "Ratón";
                     String ladoMinimax = i % 2 == 0 ? "Ratón" : "Gatos";
+                    if (ladoModelo.equals("Gatos")) {
+                        gamesCatsModel.incrementAndGet();
+                    }
                     mundo = simulaPartida(mundo, loadedModel, modelo);
                     String ganador = FuncionesGato.ratonEncerrado(mundo.getMovimiento().getTablero(),
                             mundo.getMovimiento().getPos()) ? "Gatos" : "Ratón";
 
-                    System.out.println("[" + nombreModelo + "] Partida " + i + " terminada - Modelo: " +
+                    System.out.println("Partida " + i + " terminada - Modelo: " +
                             ladoModelo + ", Ganador: " + ganador);
+                    System.out.println("Conteo partidas: " + gameNumber.incrementAndGet());
 
                     // Return result as "modelo" or "minimax"
                     if (ganador.equals(ladoModelo)) {
+                        if (ganador.equals("Gatos")) {
+                            gamesWinCatsModel.incrementAndGet();
+                        }
                         return "modelo";
                     } else if (ganador.equals(ladoMinimax)) {
                         return "minimax";
@@ -121,13 +90,16 @@ public class ModeloGatosTest {
         // Count results
         int ganaModelo = (int) resultados.stream().filter(r -> r.equals("modelo")).count();
         int ganaMinimax = (int) resultados.stream().filter(r -> r.equals("minimax")).count();
-        System.out.println("\n=== Resultados Modelo " + nombreModelo + " ===");
+        System.out.println("\n=== Resultados Modelo " + modelo.getNombreModelo() + " ===");
         System.out.println("Veces que gana el modelo: " + ganaModelo);
         System.out.println("Veces que gana Minimax: " + ganaMinimax);
         System.out.println("Porcentaje de victoria del modelo: " +
                 String.format("%.2f%%", ganaModelo / (double) numPartidas * 100.0));
-
-        return new ResultadoSimulacion(nombreModelo, ganaModelo, ganaMinimax);
+        System.out.println("Veces que gana el modelo con los gatos: " + gamesWinCatsModel.get());
+        System.out.println("Veces que el modelo es los gatos: " + gamesCatsModel.get());
+        System.out.println("Porcentaje de victorias con los gatos: " +
+                String.format("%.2f%%", gamesWinCatsModel.get() / (double) gamesCatsModel.get() * 100.0));
+        return new ResultadoSimulacion(modelo.getNombreModelo(), ganaModelo, ganaMinimax);
     }
 
     private Mundo simulaPartida(Mundo mundo, NeuralNetwork loadedModel, ModeloGatos modelo) {
@@ -147,7 +119,7 @@ public class ModeloGatosTest {
             // 2. Model Turn
             // Get model predictions
             int turno = mundo.getTurno() == 2 ? 1 : 2;
-            double[] inputs = modelo.tabularToInput(movimientoMinimax, turno);
+            double[] inputs = ModeloGatos.tabularToInput(movimientoMinimax, turno);
             double[] output = loadedModel.feedForward(inputs);
 
             // Create list of candidates (Indices) sorted by score
@@ -231,10 +203,10 @@ public class ModeloGatosTest {
 
         // Load the trained model
         ModeloGatos modelo = new ModeloGatos();
-        NeuralNetwork loadedModel = ModelManager.loadModel(modelo.getNombreModeloNormal());
+        NeuralNetwork loadedModel = ModelManager.loadModel(modelo.getNombreModelo());
 
         // Get model predictions for cats' move
-        double[] inputs = modelo.tabularToInput(tablero, 2);
+        double[] inputs = ModeloGatos.tabularToInput(tablero, 2);
         double[] output = loadedModel.feedForward(inputs);
 
         // Create list of candidates sorted by score
