@@ -1,7 +1,9 @@
-package org.javig;
+package es.jastxz;
 
-import org.javig.nn.NeuralNetwork;
 import org.junit.jupiter.api.Test;
+
+import es.jastxz.nn.NeuralNetwork;
+
 import java.io.File;
 import java.io.IOException;
 import static org.junit.jupiter.api.Assertions.*;

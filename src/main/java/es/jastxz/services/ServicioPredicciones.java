@@ -1,15 +1,16 @@
-package org.javig.services;
+package es.jastxz.services;
 
 import org.javig.engine.FuncionesDamas;
-import org.javig.models.Modelo3enRaya;
-import org.javig.models.ModeloDamas;
-import org.javig.models.ModeloGatos;
-import org.javig.nn.NeuralNetwork;
 import org.javig.tipos.Movimiento;
 import org.javig.tipos.Posicion;
 import org.javig.tipos.SmallMatrix;
 import org.javig.tipos.Tablero;
-import org.javig.util.ModelManager;
+
+import es.jastxz.models.Modelo3enRaya;
+import es.jastxz.models.ModeloDamas;
+import es.jastxz.models.ModeloGatos;
+import es.jastxz.nn.NeuralNetwork;
+import es.jastxz.util.ModelManager;
 
 import java.util.ArrayList;
 import java.util.HashMap;

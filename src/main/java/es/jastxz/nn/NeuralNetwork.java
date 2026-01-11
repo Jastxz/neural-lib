@@ -1,9 +1,10 @@
-package org.javig.nn;
+package es.jastxz.nn;
 
-import org.javig.math.Matrix;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+
+import es.jastxz.math.Matrix;
 
 public class NeuralNetwork implements Serializable {
     private static final long serialVersionUID = 1L;

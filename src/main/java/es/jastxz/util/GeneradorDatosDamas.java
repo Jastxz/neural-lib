@@ -1,4 +1,4 @@
-package org.javig.util;
+package es.jastxz.util;
 
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
@@ -14,11 +14,13 @@ import java.util.stream.IntStream;
 
 import org.javig.engine.FuncionesDamas;
 import org.javig.engine.Minimax;
-import org.javig.models.ModeloDamas;
 import org.javig.tipos.Movimiento;
 import org.javig.tipos.Mundo;
 import org.javig.tipos.Posicion;
 import org.javig.tipos.Tablero;
+import org.javig.util.Util;
+
+import es.jastxz.models.ModeloDamas;
 
 public class GeneradorDatosDamas {
 

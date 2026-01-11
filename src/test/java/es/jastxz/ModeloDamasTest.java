@@ -1,4 +1,4 @@
-package org.javig;
+package es.jastxz;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -7,17 +7,18 @@ import java.util.stream.IntStream;
 
 import org.javig.engine.FuncionesDamas;
 import org.javig.engine.Minimax;
-import org.javig.models.ModeloDamas;
-import org.javig.nn.NeuralNetwork;
 import org.javig.tipos.Movimiento;
 import org.javig.tipos.Mundo;
 import org.javig.tipos.Posicion;
 import org.javig.tipos.SmallMatrix;
 import org.javig.tipos.Tablero;
-import org.javig.util.GeneradorDatosDamas;
-import org.javig.util.ModelManager;
-import org.javig.util.TrainingPair;
 import org.junit.jupiter.api.Test;
+
+import es.jastxz.models.ModeloDamas;
+import es.jastxz.nn.NeuralNetwork;
+import es.jastxz.util.GeneradorDatosDamas;
+import es.jastxz.util.ModelManager;
+import es.jastxz.util.TrainingPair;
 
 public class ModeloDamasTest {
 

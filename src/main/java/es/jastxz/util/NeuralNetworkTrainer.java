@@ -1,6 +1,6 @@
-package org.javig.util;
+package es.jastxz.util;
 
-import org.javig.nn.NeuralNetwork;
+import es.jastxz.nn.NeuralNetwork;
 
 public class NeuralNetworkTrainer {
 

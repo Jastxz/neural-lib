@@ -1,4 +1,4 @@
-package org.javig.models;
+package es.jastxz.models;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,16 +14,17 @@ import java.lang.management.ThreadMXBean;
 
 import org.javig.engine.FuncionesGato;
 import org.javig.engine.Minimax;
-import org.javig.nn.NeuralNetwork;
 import org.javig.tipos.Movimiento;
 import org.javig.tipos.Mundo;
 import org.javig.tipos.Posicion;
 import org.javig.tipos.SmallMatrix;
 import org.javig.tipos.Tablero;
-import org.javig.util.DataContainer;
-import org.javig.util.ModelManager;
-import org.javig.util.NeuralNetworkTrainer;
 import org.javig.util.Util;
+
+import es.jastxz.nn.NeuralNetwork;
+import es.jastxz.util.DataContainer;
+import es.jastxz.util.ModelManager;
+import es.jastxz.util.NeuralNetworkTrainer;
 
 public class ModeloGatos {
     private NeuralNetwork cerebro;

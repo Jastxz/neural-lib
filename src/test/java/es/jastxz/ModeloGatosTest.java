@@ -1,4 +1,4 @@
-package org.javig;
+package es.jastxz;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,17 +7,18 @@ import java.util.stream.IntStream;
 
 import org.javig.engine.FuncionesGato;
 import org.javig.engine.Minimax;
-import org.javig.models.ModeloGatos;
-import org.javig.nn.NeuralNetwork;
 import org.javig.tipos.Movimiento;
 import org.javig.tipos.Mundo;
 import org.javig.tipos.Posicion;
 import org.javig.tipos.SmallMatrix;
 import org.javig.tipos.Tablero;
-import org.javig.util.ModelManager;
-import org.javig.util.ResultadoSimulacion;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import es.jastxz.models.ModeloGatos;
+import es.jastxz.nn.NeuralNetwork;
+import es.jastxz.util.ModelManager;
+import es.jastxz.util.ResultadoSimulacion;
 
 public class ModeloGatosTest {
     ModeloGatos modeloExperto;

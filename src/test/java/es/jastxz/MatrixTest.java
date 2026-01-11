@@ -1,7 +1,9 @@
-package org.javig;
+package es.jastxz;
 
-import org.javig.math.Matrix;
 import org.junit.jupiter.api.Test;
+
+import es.jastxz.math.Matrix;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 public class MatrixTest {

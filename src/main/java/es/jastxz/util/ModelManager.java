@@ -1,12 +1,12 @@
-package org.javig.util;
-
-import org.javig.nn.NeuralNetwork;
+package es.jastxz.util;
 
 import java.io.IOException;
 import java.util.List;
 
 import org.javig.tipos.Posicion;
 import org.javig.tipos.Tablero;
+
+import es.jastxz.nn.NeuralNetwork;
 
 public class ModelManager {
 

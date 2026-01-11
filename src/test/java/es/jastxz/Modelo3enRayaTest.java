@@ -1,16 +1,17 @@
-package org.javig;
+package es.jastxz;
 
 import org.javig.engine.Funciones3enRaya;
 import org.javig.engine.Minimax;
-import org.javig.models.Modelo3enRaya;
-import org.javig.nn.NeuralNetwork;
 import org.javig.tipos.Movimiento;
 import org.javig.tipos.Mundo;
 import org.javig.tipos.Posicion;
 import org.javig.tipos.SmallMatrix;
 import org.javig.tipos.Tablero;
-import org.javig.util.ModelManager;
 import org.junit.jupiter.api.Test;
+
+import es.jastxz.models.Modelo3enRaya;
+import es.jastxz.nn.NeuralNetwork;
+import es.jastxz.util.ModelManager;
 
 public class Modelo3enRayaTest {
 

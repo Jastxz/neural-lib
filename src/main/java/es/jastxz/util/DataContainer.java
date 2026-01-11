@@ -1,4 +1,4 @@
-package org.javig.util;
+package es.jastxz.util;
 
 public class DataContainer {
     double[][] inputs;

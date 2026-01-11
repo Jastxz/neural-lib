@@ -1,8 +1,8 @@
-package org.javig;
+package es.jastxz;
 
-import org.javig.nn.NeuralNetwork;
-import org.javig.util.ModelManager;
-import org.javig.util.NeuralNetworkTrainer;
+import es.jastxz.nn.NeuralNetwork;
+import es.jastxz.util.ModelManager;
+import es.jastxz.util.NeuralNetworkTrainer;
 
 public class Main {
     public static void main(String[] args) {
