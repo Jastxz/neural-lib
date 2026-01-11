@@ -7,13 +7,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.javig.engine.FuncionesDamas;
-import org.javig.tipos.Movimiento;
-import org.javig.tipos.Mundo;
-import org.javig.tipos.Posicion;
-import org.javig.tipos.SmallMatrix;
-import org.javig.tipos.Tablero;
-import org.javig.util.Util;
+import es.jastxz.engine.FuncionesDamas;
+import es.jastxz.tipos.Movimiento;
+import es.jastxz.tipos.Mundo;
+import es.jastxz.tipos.Posicion;
+import es.jastxz.tipos.SmallMatrix;
+import es.jastxz.tipos.Tablero;
+import es.jastxz.util.Util;
 
 import es.jastxz.nn.NeuralNetwork;
 import es.jastxz.util.DataContainer;

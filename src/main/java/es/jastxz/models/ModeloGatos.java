@@ -12,14 +12,14 @@ import java.util.stream.Collectors;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 
-import org.javig.engine.FuncionesGato;
-import org.javig.engine.Minimax;
-import org.javig.tipos.Movimiento;
-import org.javig.tipos.Mundo;
-import org.javig.tipos.Posicion;
-import org.javig.tipos.SmallMatrix;
-import org.javig.tipos.Tablero;
-import org.javig.util.Util;
+import es.jastxz.engine.FuncionesGato;
+import es.jastxz.engine.Minimax;
+import es.jastxz.tipos.Movimiento;
+import es.jastxz.tipos.Mundo;
+import es.jastxz.tipos.Posicion;
+import es.jastxz.tipos.SmallMatrix;
+import es.jastxz.tipos.Tablero;
+import es.jastxz.util.Util;
 
 import es.jastxz.nn.NeuralNetwork;
 import es.jastxz.util.DataContainer;

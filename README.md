@@ -16,7 +16,7 @@ Esta librería proporciona implementaciones de **Redes Neuronales** para jugar y
 
 ## Uso del Servicio de Predicciones
 
-La clase `org.javig.services.ServicioPredicciones` facilita la interacción con los modelos entrenados.
+La clase `es.jastxz.services.ServicioPredicciones` facilita la interacción con los modelos entrenados.
 
 ### Formato de Respuesta
 
@@ -36,11 +36,11 @@ System.out.println("Movimiento: " + movimiento.getPos().getFila() + ", " + movim
 
 ## Estructura del Proyecto
 
-- `org.javig.models`: Definición de modelos y lógica de entrenamiento específicos por juego.
-- `org.javig.nn`: Implementación de la Red Neuronal (Perceptrón Multicapa).
-- `org.javig.engine`: Reglas de juego y algoritmos Minimax.
-- `org.javig.services`: Servicio de predicciones.
-- `org.javig.tipos`: Clases de soporte (Tablero, Posicion, Mundo).
+- `es.jastxz.models`: Definición de modelos y lógica de entrenamiento específicos por juego.
+- `es.jastxz.nn`: Implementación de la Red Neuronal (Perceptrón Multicapa).
+- `es.jastxz.engine`: Reglas de juego y algoritmos Minimax.
+- `es.jastxz.services`: Servicio de predicciones.
+- `es.jastxz.tipos`: Clases de soporte (Tablero, Posicion, Mundo).
 
 ## Requisitos
 

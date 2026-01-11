@@ -1,6 +1,6 @@
-/home/javier/Repos/neural-lib/src/test/java/org/javig/ModeloGatosTest.java
-/home/javier/Repos/neural-lib/src/test/java/org/javig/ModeloDamasTest.java
-/home/javier/Repos/neural-lib/src/test/java/org/javig/Modelo3enRayaTest.java
-/home/javier/Repos/neural-lib/src/test/java/org/javig/PersistenceTest.java
-/home/javier/Repos/neural-lib/src/test/java/org/javig/XORTest.java
-/home/javier/Repos/neural-lib/src/test/java/org/javig/MatrixTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/ModeloDamasTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/Modelo3enRayaTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/XORTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/ModeloGatosTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/PersistenceTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/MatrixTest.java

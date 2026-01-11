@@ -1,12 +1,12 @@
 package es.jastxz;
 
-import org.javig.engine.Funciones3enRaya;
-import org.javig.engine.Minimax;
-import org.javig.tipos.Movimiento;
-import org.javig.tipos.Mundo;
-import org.javig.tipos.Posicion;
-import org.javig.tipos.SmallMatrix;
-import org.javig.tipos.Tablero;
+import es.jastxz.engine.Funciones3enRaya;
+import es.jastxz.engine.Minimax;
+import es.jastxz.tipos.Movimiento;
+import es.jastxz.tipos.Mundo;
+import es.jastxz.tipos.Posicion;
+import es.jastxz.tipos.SmallMatrix;
+import es.jastxz.tipos.Tablero;
 import org.junit.jupiter.api.Test;
 
 import es.jastxz.models.Modelo3enRaya;

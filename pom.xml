@@ -27,7 +27,7 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.javig</groupId>
+            <groupId>es.jastxz</groupId>
             <artifactId>engine-lib</artifactId>
             <version>1.0</version>
         </dependency>

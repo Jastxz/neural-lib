@@ -1,6 +1,6 @@
-org/javig/PersistenceTest.class
-org/javig/ModeloGatosTest.class
-org/javig/Modelo3enRayaTest.class
-org/javig/XORTest.class
-org/javig/MatrixTest.class
-org/javig/ModeloDamasTest.class
+es/jastxz/MatrixTest.class
+es/jastxz/XORTest.class
+es/jastxz/PersistenceTest.class
+es/jastxz/Modelo3enRayaTest.class
+es/jastxz/ModeloDamasTest.class
+es/jastxz/ModeloGatosTest.class

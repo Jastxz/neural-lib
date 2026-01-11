@@ -3,8 +3,8 @@ package es.jastxz.util;
 import java.io.IOException;
 import java.util.List;
 
-import org.javig.tipos.Posicion;
-import org.javig.tipos.Tablero;
+import es.jastxz.tipos.Posicion;
+import es.jastxz.tipos.Tablero;
 
 import es.jastxz.nn.NeuralNetwork;
 

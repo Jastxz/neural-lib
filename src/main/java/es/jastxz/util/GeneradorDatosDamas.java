@@ -12,13 +12,13 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.javig.engine.FuncionesDamas;
-import org.javig.engine.Minimax;
-import org.javig.tipos.Movimiento;
-import org.javig.tipos.Mundo;
-import org.javig.tipos.Posicion;
-import org.javig.tipos.Tablero;
-import org.javig.util.Util;
+import es.jastxz.engine.FuncionesDamas;
+import es.jastxz.engine.Minimax;
+import es.jastxz.tipos.Movimiento;
+import es.jastxz.tipos.Mundo;
+import es.jastxz.tipos.Posicion;
+import es.jastxz.tipos.Tablero;
+import es.jastxz.util.Util;
 
 import es.jastxz.models.ModeloDamas;
 

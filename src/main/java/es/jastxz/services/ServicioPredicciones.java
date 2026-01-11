@@ -1,10 +1,10 @@
 package es.jastxz.services;
 
-import org.javig.engine.FuncionesDamas;
-import org.javig.tipos.Movimiento;
-import org.javig.tipos.Posicion;
-import org.javig.tipos.SmallMatrix;
-import org.javig.tipos.Tablero;
+import es.jastxz.engine.FuncionesDamas;
+import es.jastxz.tipos.Movimiento;
+import es.jastxz.tipos.Posicion;
+import es.jastxz.tipos.SmallMatrix;
+import es.jastxz.tipos.Tablero;
 
 import es.jastxz.models.Modelo3enRaya;
 import es.jastxz.models.ModeloDamas;

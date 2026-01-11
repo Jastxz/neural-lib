@@ -5,13 +5,13 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
-import org.javig.engine.FuncionesGato;
-import org.javig.engine.Minimax;
-import org.javig.tipos.Movimiento;
-import org.javig.tipos.Mundo;
-import org.javig.tipos.Posicion;
-import org.javig.tipos.SmallMatrix;
-import org.javig.tipos.Tablero;
+import es.jastxz.engine.FuncionesGato;
+import es.jastxz.engine.Minimax;
+import es.jastxz.tipos.Movimiento;
+import es.jastxz.tipos.Mundo;
+import es.jastxz.tipos.Posicion;
+import es.jastxz.tipos.SmallMatrix;
+import es.jastxz.tipos.Tablero;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
