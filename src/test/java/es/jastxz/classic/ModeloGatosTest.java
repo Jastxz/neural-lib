@@ -1,4 +1,4 @@
-package es.jastxz;
+package es.jastxz.classic;
 
 import java.util.ArrayList;
 import java.util.List;

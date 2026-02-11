@@ -18,7 +18,6 @@ import es.jastxz.tipos.Movimiento;
 import es.jastxz.tipos.Mundo;
 import es.jastxz.tipos.Posicion;
 import es.jastxz.tipos.Tablero;
-import es.jastxz.util.Util;
 
 import es.jastxz.models.ModeloDamas;
 

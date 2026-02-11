@@ -1,6 +1,11 @@
-/home/javier/Repos/neural-lib/src/test/java/es/jastxz/ModeloDamasTest.java
-/home/javier/Repos/neural-lib/src/test/java/es/jastxz/Modelo3enRayaTest.java
-/home/javier/Repos/neural-lib/src/test/java/es/jastxz/XORTest.java
-/home/javier/Repos/neural-lib/src/test/java/es/jastxz/ModeloGatosTest.java
-/home/javier/Repos/neural-lib/src/test/java/es/jastxz/PersistenceTest.java
-/home/javier/Repos/neural-lib/src/test/java/es/jastxz/MatrixTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/classic/MatrixTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/experimental/ConexionTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/classic/Modelo3enRayaTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/classic/XORTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/classic/PersistenceTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/classic/ModeloGatosTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/experimental/RedNeuralExperimentalTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/experimental/NeuronaTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/classic/ModeloDamasTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/experimental/EngramaTest.java
+/home/javier/Repos/neural-lib/src/test/java/es/jastxz/RedNeuralExperimentalFase2Test.java

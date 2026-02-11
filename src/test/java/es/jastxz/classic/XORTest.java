@@ -1,4 +1,4 @@
-package es.jastxz;
+package es.jastxz.classic;
 
 import org.junit.jupiter.api.Test;
 

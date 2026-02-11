@@ -1,4 +1,4 @@
-package es.jastxz;
+package es.jastxz.classic;
 
 import es.jastxz.engine.Funciones3enRaya;
 import es.jastxz.engine.Minimax;
