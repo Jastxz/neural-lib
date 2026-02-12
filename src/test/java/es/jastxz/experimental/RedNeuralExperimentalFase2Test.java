@@ -1,4 +1,4 @@
-package es.jastxz;
+package es.jastxz.experimental;
 
 import es.jastxz.nn.*;
 import org.junit.jupiter.api.Test;

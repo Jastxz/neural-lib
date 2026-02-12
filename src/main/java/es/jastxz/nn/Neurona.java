@@ -115,9 +115,9 @@ public class Neurona {
     }
     
     /**
-     * Activa la neurona
+     * Activa la neurona (usado para inputs sensoriales directos)
      */
-    private void activar(long timestamp) {
+    public void activar(long timestamp) {
         this.activa = true;
         this.potencial = PotencialMemoria.PICO;  // Pico de potencial de acción (mV)
         this.timestampUltimaActivacion = timestamp;
@@ -164,6 +164,13 @@ public class Neurona {
      */
     public void unirseAEngrama(String engramaId) {
         engramasActivos.add(engramaId);
+    }
+    
+    /**
+     * Elimina esta neurona de un engrama
+     */
+    public void abandonarEngrama(String engramaId) {
+        engramasActivos.remove(engramaId);
     }
     
     /**

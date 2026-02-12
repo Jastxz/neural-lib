@@ -12,6 +12,8 @@ public class Engrama {
     private final Set<Neurona> neuronasParticipantes;
     private final Set<Conexion> conexionesParticipantes;
     private double fuerza;  // Consolidación del engrama
+    private double relevancia;  // Importancia del engrama (para consolidación)
+    private int contadorActivaciones;  // Número de veces que se ha activado
     private long timestampCreacion;
     private long timestampUltimaActivacion;
     
@@ -20,8 +22,24 @@ public class Engrama {
         this.neuronasParticipantes = new HashSet<>();
         this.conexionesParticipantes = new HashSet<>();
         this.fuerza = 0.5;  // Fuerza inicial media
+        this.relevancia = 1.0;  // Relevancia inicial máxima
+        this.contadorActivaciones = 0;
         this.timestampCreacion = System.currentTimeMillis();
         this.timestampUltimaActivacion = timestampCreacion;
+    }
+    
+    /**
+     * Constructor con lista de neuronas participantes
+     */
+    public Engrama(String id, java.util.List<Neurona> neuronas, long timestamp) {
+        this.id = id;
+        this.neuronasParticipantes = new HashSet<>(neuronas);
+        this.conexionesParticipantes = new HashSet<>();
+        this.fuerza = 0.5;
+        this.relevancia = 1.0;
+        this.contadorActivaciones = 0;
+        this.timestampCreacion = timestamp;
+        this.timestampUltimaActivacion = timestamp;
     }
     
     /**
@@ -98,10 +116,50 @@ public class Engrama {
         }
     }
     
+    /**
+     * Activa el engrama, facilitando todas sus neuronas
+     */
+    public void activar(long timestamp) {
+        this.timestampUltimaActivacion = timestamp;
+        this.contadorActivaciones++;
+        
+        // Facilitar todas las neuronas del engrama
+        for (Neurona n : neuronasParticipantes) {
+            n.facilitarActivacion(fuerza);
+        }
+    }
+    
+    /**
+     * Verifica si este engrama contiene un porcentaje significativo de las neuronas dadas
+     * @param neuronas Lista de neuronas a verificar
+     * @param umbralSolapamiento Porcentaje mínimo de solapamiento (0.0 a 1.0)
+     * @return true si hay suficiente solapamiento
+     */
+    public boolean contieneNeuronas(java.util.List<Neurona> neuronas, double umbralSolapamiento) {
+        if (neuronas == null || neuronas.isEmpty()) {
+            return false;
+        }
+        
+        long neuronasComunes = neuronas.stream()
+            .filter(neuronasParticipantes::contains)
+            .count();
+        
+        double proporcionComun = (double) neuronasComunes / neuronas.size();
+        return proporcionComun >= umbralSolapamiento;
+    }
+    
     // Getters
     public String getId() { return id; }
     public Set<Neurona> getNeuronasParticipantes() { return new HashSet<>(neuronasParticipantes); }
+    public java.util.List<Neurona> getNeuronas() { return new java.util.ArrayList<>(neuronasParticipantes); }
     public Set<Conexion> getConexionesParticipantes() { return new HashSet<>(conexionesParticipantes); }
     public double getFuerza() { return fuerza; }
+    public double getRelevancia() { return relevancia; }
+    public int getContadorActivaciones() { return contadorActivaciones; }
     public long getTimestampUltimaActivacion() { return timestampUltimaActivacion; }
+    
+    // Setters
+    public void setRelevancia(double relevancia) { 
+        this.relevancia = Math.max(0.0, Math.min(2.0, relevancia)); 
+    }
 }

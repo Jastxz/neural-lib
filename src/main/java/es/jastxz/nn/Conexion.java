@@ -23,6 +23,7 @@ public class Conexion {
     private long timestampUltimaActivacion;
     private int vecesActivadaJuntas;  // Contador para "activan juntas, conectan juntas"
     private double tasaRefuerzo;  // Velocidad de cambio del peso
+    private static final double TASA_REFUERZO_DEFAULT = 0.02;  // Tasa de aprendizaje
     
     // Pertenencia a engramas
     private Set<String> engramasActivos;
@@ -39,7 +40,7 @@ public class Conexion {
         
         this.timestampUltimaActivacion = 0L;
         this.vecesActivadaJuntas = 0;
-        this.tasaRefuerzo = 0.01;  // Ajustable
+        this.tasaRefuerzo = TASA_REFUERZO_DEFAULT;
         
         this.engramasActivos = new HashSet<>();
         
@@ -62,7 +63,7 @@ public class Conexion {
         
         this.timestampUltimaActivacion = 0L;
         this.vecesActivadaJuntas = 0;
-        this.tasaRefuerzo = 0.01;
+        this.tasaRefuerzo = TASA_REFUERZO_DEFAULT;
         
         this.engramasActivos = new HashSet<>();
         
