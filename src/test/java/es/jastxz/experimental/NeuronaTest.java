@@ -11,6 +11,8 @@ import org.junit.jupiter.api.DisplayName;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.List;
+
 /**
  * Tests para la clase Neurona
  * Valida comportamiento biológico: activación, plasticidad, recursos, engramas
@@ -45,10 +47,10 @@ class NeuronaTest {
         Neurona pre = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         
         // Crear conexión con peso alto
-        new Conexion(pre, neuronaInter, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion = new Conexion(pre, neuronaInter, 0.9, TipoConexion.QUIMICA);
         
         // Evaluar neurona
-        boolean activada = neuronaInter.evaluar(1000L);
+        boolean activada = neuronaInter.evaluar(List.of(conexion), 1000L);
         
         // Verificar que se activó
         assertTrue(activada);
@@ -64,10 +66,10 @@ class NeuronaTest {
         Neurona pre = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.REPOSO);
         
         // Crear conexión (pero pre no está activa, así que no contribuye)
-        new Conexion(pre, neuronaInter, 0.5, TipoConexion.QUIMICA);
+        Conexion conexion = new Conexion(pre, neuronaInter, 0.5, TipoConexion.QUIMICA);
         
         // Evaluar sin que la presináptica esté activa
-        boolean activada = neuronaInter.evaluar(1000L);
+        boolean activada = neuronaInter.evaluar(List.of(conexion), 1000L);
         
         // No debería activarse porque la suma de inputs es 0 (pre no está activa)
         assertFalse(activada);
@@ -79,8 +81,8 @@ class NeuronaTest {
     void testReseteo() {
         // Activar neurona con input suficiente
         Neurona pre = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
-        new Conexion(pre, neuronaSensorial, 0.9, TipoConexion.QUIMICA);
-        neuronaSensorial.evaluar(1000L);
+        Conexion conexion = new Conexion(pre, neuronaSensorial, 0.9, TipoConexion.QUIMICA);
+        neuronaSensorial.evaluar(List.of(conexion), 1000L);
         
         // Verificar que está activa
         assertTrue(neuronaSensorial.estaActiva());
@@ -101,7 +103,7 @@ class NeuronaTest {
         long umbralTiempo = 50000L;
         
         // Activar neurona inicialmente
-        neuronaSensorial.evaluar(timestampInicial);
+        neuronaSensorial.activar(timestampInicial);
         
         double supervivenciaInicial = neuronaSensorial.getFactorSupervivencia();
         
@@ -135,53 +137,40 @@ class NeuronaTest {
     }
     
     @Test
-    @DisplayName("Neurona puede unirse a engramas")
+    @DisplayName("Neurona puede unirse a engramas (legacy)")
     void testUnionAEngrama() {
+        // Este método ya no hace nada - los engramas se gestionan desde GestorEngramas
         String engramaId = "engrama_test_001";
         
         neuronaSensorial.unirseAEngrama(engramaId);
         
-        assertTrue(neuronaSensorial.getEngramasActivos().contains(engramaId));
-        assertEquals(1, neuronaSensorial.getEngramasActivos().size());
+        // Ya no hay referencias bidireccionales
+        assertEquals(0, neuronaSensorial.getEngramasActivos().size());
     }
     
     @Test
-    @DisplayName("Neurona puede salir de engramas")
+    @DisplayName("Neurona puede salir de engramas (legacy)")
     void testSalidaDeEngrama() {
+        // Este método ya no hace nada - los engramas se gestionan desde GestorEngramas
         String engramaId = "engrama_test_001";
         
         neuronaSensorial.unirseAEngrama(engramaId);
         neuronaSensorial.salirDeEngrama(engramaId);
         
-        assertFalse(neuronaSensorial.getEngramasActivos().contains(engramaId));
+        // Ya no hay referencias bidireccionales
         assertEquals(0, neuronaSensorial.getEngramasActivos().size());
     }
     
     @Test
-    @DisplayName("Neurona puede pertenecer a múltiples engramas")
+    @DisplayName("Neurona puede pertenecer a múltiples engramas (legacy)")
     void testMultiplesEngramas() {
+        // Este método ya no hace nada - los engramas se gestionan desde GestorEngramas
         neuronaSensorial.unirseAEngrama("engrama_001");
         neuronaSensorial.unirseAEngrama("engrama_002");
         neuronaSensorial.unirseAEngrama("engrama_003");
         
-        assertEquals(3, neuronaSensorial.getEngramasActivos().size());
-    }
-    
-    @Test
-    @DisplayName("Neurona mantiene listas de axones y dendritas")
-    void testConexionesAxonalesDendriticas() {
-        Neurona pre = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.REPOSO);
-        Neurona post = new Neurona(11L, TipoNeurona.INTER, 0.0, PotencialMemoria.REPOSO);
-        
-        new Conexion(pre, post, 0.5, TipoConexion.QUIMICA);
-        
-        // Pre debe tener axón
-        assertEquals(1, pre.getAxones().size());
-        assertEquals(0, pre.getDendritas().size());
-        
-        // Post debe tener dendrita
-        assertEquals(0, post.getAxones().size());
-        assertEquals(1, post.getDendritas().size());
+        // Ya no hay referencias bidireccionales
+        assertEquals(0, neuronaSensorial.getEngramasActivos().size());
     }
     
     @Test
@@ -191,11 +180,11 @@ class NeuronaTest {
         
         // Crear conexión que active la neurona
         Neurona pre = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
-        new Conexion(pre, neuronaSensorial, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion = new Conexion(pre, neuronaSensorial, 0.9, TipoConexion.QUIMICA);
         
         // Activar múltiples veces
         for (int i = 0; i < 5; i++) {
-            neuronaSensorial.evaluar(i * 1000L);
+            neuronaSensorial.evaluar(List.of(conexion), i * 1000L);
         }
         
         // Verificar que supervivencia aumentó
@@ -230,10 +219,10 @@ class NeuronaTest {
         
         // Crear input que con facilitación podría activar
         Neurona pre = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
-        new Conexion(pre, neuronaInter, 0.05, TipoConexion.QUIMICA);
+        Conexion conexion = new Conexion(pre, neuronaInter, 0.05, TipoConexion.QUIMICA);
         
         // Con facilitación máxima (50% reducción de umbral), debería activarse
-        boolean activada = neuronaInter.evaluar(1000L);
+        boolean activada = neuronaInter.evaluar(List.of(conexion), 1000L);
         
         // Verificamos que la facilitación permite activación más fácil
         // (el resultado depende de los valores exactos, pero el mecanismo está implementado)
@@ -248,11 +237,11 @@ class NeuronaTest {
         
         // Crear input insuficiente (neurona inactiva)
         Neurona pre = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.REPOSO);
-        new Conexion(pre, neuronaInter, 0.1, TipoConexion.QUIMICA);
+        Conexion conexion = new Conexion(pre, neuronaInter, 0.1, TipoConexion.QUIMICA);
         
         // Evaluar múltiples veces sin activación (facilitación debería decaer)
         for (int i = 0; i < 10; i++) {
-            neuronaInter.evaluar(i * 1000L);
+            neuronaInter.evaluar(List.of(conexion), i * 1000L);
         }
         
         // La facilitación debería haber decaído

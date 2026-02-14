@@ -8,12 +8,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.io.Serializable;
 
 /**
  * Gestiona el sistema de predicción y codificación predictiva
  * Implementa el principio de Eagleman (pg. 64): "solo se transmite el error de predicción"
  */
-public class GestorPredicciones {
+public class GestorPredicciones implements Serializable {
+    private static final long serialVersionUID = 1L;
     
     private boolean modoPredictivo;
     private Map<Integer, double[]> prediccionesPorCapa;
@@ -73,7 +75,8 @@ public class GestorPredicciones {
     }
     
     public void calcularPredicciones(List<List<Neurona>> capasInterneuronas, 
-                                     List<Neurona> capaMotora) {
+                                     List<Neurona> capaMotora,
+                                     List<Conexion> todasConexiones) {
         // Predicción de capas intermedias
         for (int i = 0; i < capasInterneuronas.size(); i++) {
             List<Neurona> capaActual = capasInterneuronas.get(i);
@@ -84,12 +87,17 @@ public class GestorPredicciones {
                 
                 double suma = 0.0;
                 int contador = 0;
-                for (Conexion dendrita : neurona.getDendritas()) {
-                    if (dendrita.getPresinaptica().estaActiva()) {
-                        double potencialNormalizado = dendrita.getPresinaptica().getPotencial() / 
-                            PotencialMemoria.PICO.getValor();
-                        suma += dendrita.getPeso() * potencialNormalizado;
-                        contador++;
+                
+                // Buscar conexiones que llegan a esta neurona
+                for (Conexion conexion : todasConexiones) {
+                    if (conexion.getPostsinapticas().contains(neurona)) {
+                        Neurona pre = conexion.getPresinaptica();
+                        if (pre.estaActiva()) {
+                            double potencialNormalizado = pre.getPotencial() / 
+                                PotencialMemoria.PICO.getValor();
+                            suma += conexion.getPeso() * potencialNormalizado;
+                            contador++;
+                        }
                     }
                 }
                 
@@ -106,12 +114,17 @@ public class GestorPredicciones {
             
             double suma = 0.0;
             int contador = 0;
-            for (Conexion dendrita : neurona.getDendritas()) {
-                if (dendrita.getPresinaptica().estaActiva()) {
-                    double potencialNormalizado = dendrita.getPresinaptica().getPotencial() / 
-                        PotencialMemoria.PICO.getValor();
-                    suma += dendrita.getPeso() * potencialNormalizado;
-                    contador++;
+            
+            // Buscar conexiones que llegan a esta neurona motora
+            for (Conexion conexion : todasConexiones) {
+                if (conexion.getPostsinapticas().contains(neurona)) {
+                    Neurona pre = conexion.getPresinaptica();
+                    if (pre.estaActiva()) {
+                        double potencialNormalizado = pre.getPotencial() / 
+                            PotencialMemoria.PICO.getValor();
+                        suma += conexion.getPeso() * potencialNormalizado;
+                        contador++;
+                    }
                 }
             }
             

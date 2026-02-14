@@ -10,6 +10,7 @@ import es.jastxz.nn.experimental.GestorEngramas;
 import es.jastxz.nn.experimental.GestorPredicciones;
 import es.jastxz.nn.experimental.GestorCompeticion;
 
+import java.io.*;
 import java.util.*;
 
 /**
@@ -21,6 +22,7 @@ import java.util.*;
  * - Predicción y error de predicción
  * - Competición por recursos
  * - Formación y consolidación de engramas
+ * - Persistencia (guardar/cargar modelos entrenados)
  * 
  * IMPORTANTE - Tres Niveles de Estado:
  * 
@@ -49,14 +51,15 @@ import java.util.*;
  * 
  * Basado en: Apuntes_Neurologicos.md
  */
-public class RedNeuralExperimental {
+public class RedNeuralExperimental implements Serializable {
+    private static final long serialVersionUID = 1L;
     
     // Arquitectura de capas
     private List<Neurona> capaSensorial;
     private List<List<Neurona>> capasInterneuronas;  // Múltiples subcapas
     private List<Neurona> capaMotora;
     
-    // Conectividad
+    // Lista de todas las conexiones (mantiene pesos, tipos, etc.)
     private List<Conexion> conexiones;
     
     // Sistema de memoria
@@ -209,8 +212,16 @@ public class RedNeuralExperimental {
             for (Neurona post : capaDestino) {
                 // Decidir si crear conexión según densidad
                 if (random.nextDouble() < densidadConexiones) {
-                    // Peso inicial positivo pequeño para feed-forward (permite aprendizaje hebiano)
-                    double peso = random.nextDouble() * 0.3 + 0.1;  // [0.1, 0.4]
+                    // MEJORADO: 20% de conexiones inhibitorias (como neuronas GABAérgicas)
+                    // Esto permite que la red aprenda inhibición como el cerebro real
+                    double peso;
+                    if (random.nextDouble() < 0.2) {
+                        // Conexión inhibitoria (peso negativo)
+                        peso = -(random.nextDouble() * 0.3 + 0.1);  // [-0.4, -0.1]
+                    } else {
+                        // Conexión excitatoria (peso positivo)
+                        peso = random.nextDouble() * 0.3 + 0.1;  // [0.1, 0.4]
+                    }
                     
                     // 66% de probabilidad de sinapsis diádica (inspirado en C. elegans)
                     if (permitirDiadicas && random.nextDouble() < 0.66 && capaDestino.size() > 1) {
@@ -292,17 +303,21 @@ public class RedNeuralExperimental {
         
         // Si modo predictivo está activo, calcular predicciones antes de procesar
         if (gestorPredicciones.estaActivo()) {
-            gestorPredicciones.calcularPredicciones(capasInterneuronas, capaMotora);
+            gestorPredicciones.calcularPredicciones(capasInterneuronas, capaMotora, conexiones);
         }
         
         // Establecer inputs en capa sensorial
         propagador.establecerInputs(capaSensorial, inputs, timestampGlobal);
         
-        // Propagación feed-forward
-        propagador.propagarHaciaAdelante(capasInterneuronas, capaMotora, timestampGlobal);
+        // Obtener todas las neuronas para propagación
+        List<Neurona> todasNeuronas = obtenerTodasNeuronas();
         
-        // Propagación feedback (refinamiento)
-        propagador.propagarHaciaAtras(capaMotora, capasInterneuronas);
+        // Propagación feed-forward (usando todas las conexiones)
+        propagador.propagarHaciaAdelante(conexiones, todasNeuronas, timestampGlobal);
+        
+        // Propagación feedback (usando conexiones feedback)
+        List<Conexion> conexionesFeedback = obtenerConexionesFeedback();
+        propagador.propagarHaciaAtras(conexionesFeedback, todasNeuronas);
         
         // Si detección de engramas está activa, detectar patrones
         if (gestorEngramas.esDeteccionActiva()) {
@@ -320,6 +335,75 @@ public class RedNeuralExperimental {
         
         // Extraer outputs
         return propagador.getOutputs(capaMotora);
+    }
+    
+    /**
+     * Obtiene todas las neuronas de la red en una lista
+     */
+    private List<Neurona> obtenerTodasNeuronas() {
+        List<Neurona> todas = new ArrayList<>();
+        todas.addAll(capaSensorial);
+        for (List<Neurona> capa : capasInterneuronas) {
+            todas.addAll(capa);
+        }
+        todas.addAll(capaMotora);
+        return todas;
+    }
+    
+    /**
+     * Obtiene solo las conexiones feedback (de capas posteriores a anteriores)
+     */
+    private List<Conexion> obtenerConexionesFeedback() {
+        List<Conexion> feedback = new ArrayList<>();
+        
+        // Identificar qué neuronas están en qué capa
+        Set<Neurona> sensorial = new HashSet<>(capaSensorial);
+        List<Set<Neurona>> intermedias = new ArrayList<>();
+        for (List<Neurona> capa : capasInterneuronas) {
+            intermedias.add(new HashSet<>(capa));
+        }
+        Set<Neurona> motora = new HashSet<>(capaMotora);
+        
+        // Filtrar conexiones feedback
+        for (Conexion c : conexiones) {
+            Neurona pre = c.getPresinaptica();
+            List<Neurona> posts = c.getPostsinapticas();
+            
+            // Feedback: motora → inter o inter[i] → inter[i-1] o inter → sensorial
+            boolean esFeedback = false;
+            
+            // Motora → cualquier capa anterior
+            if (motora.contains(pre)) {
+                esFeedback = true;
+            }
+            
+            // Inter[i] → Inter[i-1] o sensorial
+            for (int i = intermedias.size() - 1; i >= 0; i--) {
+                if (intermedias.get(i).contains(pre)) {
+                    // Verificar si alguna post está en capa anterior
+                    for (Neurona post : posts) {
+                        if (sensorial.contains(post)) {
+                            esFeedback = true;
+                            break;
+                        }
+                        for (int j = 0; j < i; j++) {
+                            if (intermedias.get(j).contains(post)) {
+                                esFeedback = true;
+                                break;
+                            }
+                        }
+                        if (esFeedback) break;
+                    }
+                }
+                if (esFeedback) break;
+            }
+            
+            if (esFeedback) {
+                feedback.add(c);
+            }
+        }
+        
+        return feedback;
     }
     
     /**
@@ -394,7 +478,7 @@ public class RedNeuralExperimental {
             entrenador.aplicarPlasticidadHebianaGlobal(conexiones, timestampGlobal);
             
             // Modular aprendizaje basándose en error (supervisión débil)
-            entrenador.modularAprendizajePorError(capaMotora, capasInterneuronas, errores);
+            entrenador.modularAprendizajePorError(capaMotora, capasInterneuronas, errores, conexiones);
             
             // Avanzar tiempo para ventana temporal
             avanzarTiempo(10L);
@@ -856,5 +940,53 @@ public class RedNeuralExperimental {
         sb.append("  Engramas: ").append(gestorEngramas.getEngramas().size()).append("\n");
         sb.append("}");
         return sb.toString();
+    }
+    
+    // ==================== PERSISTENCIA ====================
+    
+    /**
+     * Guarda el modelo entrenado en un archivo
+     * Permite reutilizar redes entrenadas sin tener que reentrenarlas
+     * 
+     * @param filename Ruta del archivo donde guardar el modelo
+     * @throws IOException Si hay error al escribir el archivo
+     */
+    public void guardar(String filename) throws IOException {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filename))) {
+            oos.writeObject(this);
+        }
+    }
+    
+    /**
+     * Carga un modelo entrenado desde un archivo
+     * 
+     * @param filename Ruta del archivo desde donde cargar el modelo
+     * @return RedNeuralExperimental cargada desde el archivo
+     * @throws IOException Si hay error al leer el archivo
+     * @throws ClassNotFoundException Si la clase no se encuentra
+     */
+    public static RedNeuralExperimental cargar(String filename) throws IOException, ClassNotFoundException {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filename))) {
+            return (RedNeuralExperimental) ois.readObject();
+        }
+    }
+    
+    /**
+     * Carga un modelo entrenado desde resources (classpath)
+     * Útil para cargar modelos pre-entrenados empaquetados en el JAR
+     * 
+     * @param resourcePath Ruta del recurso (ej: "modeloOR_experimental.nn")
+     * @return RedNeuralExperimental cargada desde resources
+     * @throws IOException Si hay error al leer el recurso
+     * @throws ClassNotFoundException Si la clase no se encuentra
+     */
+    public static RedNeuralExperimental cargarDesdeRecurso(String resourcePath) throws IOException, ClassNotFoundException {
+        InputStream inputStream = RedNeuralExperimental.class.getClassLoader().getResourceAsStream(resourcePath);
+        if (inputStream == null) {
+            throw new IOException("Recurso no encontrado: " + resourcePath);
+        }
+        try (ObjectInputStream ois = new ObjectInputStream(inputStream)) {
+            return (RedNeuralExperimental) ois.readObject();
+        }
     }
 }

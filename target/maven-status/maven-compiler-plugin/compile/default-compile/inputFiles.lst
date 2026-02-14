@@ -5,6 +5,7 @@
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/experimental/PropagadorSeñal.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/enums/PotencialMemoria.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/experimental/EntrenadorHebiano.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/models/ModeloDamasExperimental.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/RedNeuralExperimental.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/util/NeuralNetworkTrainer.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/services/ServicioPredicciones.java
@@ -13,12 +14,14 @@
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/util/TrainingPair.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/experimental/GestorEngramas.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/experimental/GestorPredicciones.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/models/ModeloGatosExperimental.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/Neurona.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/util/ResultadoSimulacion.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/enums/TipoNeurona.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/util/FormatClassToString.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/Engrama.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/models/ModeloGatos.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/models/Modelo3enRayaExperimental.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/models/ModeloDamas.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/Main.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/math/Matrix.java

@@ -35,8 +35,8 @@ class ConexionTest {
     @DisplayName("Conexión se inicializa correctamente")
     void testInicializacion() {
         assertEquals(presináptica, conexion.getPresinaptica());
-        assertEquals(1, conexion.getPostsinápticas().size());
-        assertTrue(conexion.getPostsinápticas().contains(postsináptica));
+        assertEquals(1, conexion.getPostsinapticas().size());
+        assertTrue(conexion.getPostsinapticas().contains(postsináptica));
         assertEquals(0.5, conexion.getPeso(), 0.001);
         assertEquals(TipoConexion.QUIMICA, conexion.getTipo());
         assertEquals(1.0, conexion.getRecursosAsignados(), 0.001);
@@ -47,8 +47,8 @@ class ConexionTest {
     @DisplayName("Conexión se registra en neuronas pre y post")
     void testRegistroEnNeuronas() {
         // Verificar que la conexión está registrada
-        assertTrue(presináptica.getAxones().contains(conexion));
-        assertTrue(postsináptica.getDendritas().contains(conexion));
+        assertTrue(conexion.getPresinaptica().equals(presináptica));
+        assertTrue(conexion.getPostsinapticas().contains(postsináptica));
     }
     
     @Test
@@ -60,14 +60,14 @@ class ConexionTest {
         Neurona pre1 = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         Neurona pre2 = new Neurona(11L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         
-        new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
-        new Conexion(pre2, postsináptica, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion1 = new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion2 = new Conexion(pre2, postsináptica, 0.9, TipoConexion.QUIMICA);
         
-        presináptica.evaluar(1000L);
-        postsináptica.evaluar(1000L);
+        presináptica.evaluar(List.of(conexion1), 1000L);
+        postsináptica.evaluar(List.of(conexion2), 1000L);
         
-        // Aplicar plasticidad
-        conexion.aplicarPlasticidadHebiana(1000L, 100L);
+        // Aplicar plasticidad con las neuronas correctas
+        conexion.aplicarPlasticidadHebiana(presináptica, List.of(postsináptica), 1000L, 100L);
         
         // Verificar refuerzo
         assertTrue(conexion.getPeso() > pesoInicial);
@@ -81,12 +81,12 @@ class ConexionTest {
         Neurona pre1 = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         Neurona pre2 = new Neurona(11L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         
-        new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
-        new Conexion(pre2, postsináptica, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion1 = new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion2 = new Conexion(pre2, postsináptica, 0.9, TipoConexion.QUIMICA);
         
-        presináptica.evaluar(1000L);
-        postsináptica.evaluar(1000L);
-        conexion.aplicarPlasticidadHebiana(1000L, 100L);
+        presináptica.evaluar(List.of(conexion1), 1000L);
+        postsináptica.evaluar(List.of(conexion2), 1000L);
+        conexion.aplicarPlasticidadHebiana(presináptica, List.of(postsináptica), 1000L, 100L);
         
         double pesoTrasActivacion = conexion.getPeso();
         
@@ -95,20 +95,20 @@ class ConexionTest {
         postsináptica.resetear();
         
         // Simular paso del tiempo sin activación (mucho más allá de la ventana temporal)
-        conexion.aplicarPlasticidadHebiana(100000L, 100L);
+        conexion.aplicarPlasticidadHebiana(presináptica, List.of(postsináptica), 100000L, 100L);
         
         // Verificar debilitamiento respecto al peso tras activación
         assertTrue(conexion.getPeso() < pesoTrasActivacion);
     }
     
     @Test
-    @DisplayName("Peso se mantiene en rango [0, 1]")
+    @DisplayName("Peso se mantiene en rango [-1, 1]")
     void testPesoEnRango() {
         conexion.setPeso(1.5);
         assertEquals(1.0, conexion.getPeso(), 0.001);
         
-        conexion.setPeso(-0.5);
-        assertEquals(0.0, conexion.getPeso(), 0.001);
+        conexion.setPeso(-1.5);
+        assertEquals(-1.0, conexion.getPeso(), 0.001);
     }
     
     @Test
@@ -142,16 +142,16 @@ class ConexionTest {
         Neurona pre1 = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         Neurona pre2 = new Neurona(11L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         
-        new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
-        new Conexion(pre2, postsináptica, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion1 = new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion2 = new Conexion(pre2, postsináptica, 0.9, TipoConexion.QUIMICA);
         
         // Activar repetidamente
         for (int i = 0; i < 10; i++) {
             presináptica.resetear();
             postsináptica.resetear();
-            presináptica.evaluar(i * 1000L);
-            postsináptica.evaluar(i * 1000L);
-            conexion.aplicarPlasticidadHebiana(i * 1000L, 100L);
+            presináptica.evaluar(List.of(conexion1), i * 1000L);
+            postsináptica.evaluar(List.of(conexion2), i * 1000L);
+            conexion.aplicarPlasticidadHebiana(presináptica, List.of(postsináptica), i * 1000L, 100L);
         }
         
         // Verificar aumento de recursos
@@ -165,7 +165,7 @@ class ConexionTest {
         
         // Simular desuso prolongado
         for (int i = 0; i < 10; i++) {
-            conexion.aplicarPlasticidadHebiana(i * 10000L, 100L);
+            conexion.aplicarPlasticidadHebiana(presináptica, List.of(postsináptica), i * 10000L, 100L);
         }
         
         // Verificar disminución de recursos
@@ -173,25 +173,27 @@ class ConexionTest {
     }
     
     @Test
-    @DisplayName("Conexión puede unirse a engramas")
+    @DisplayName("Conexión puede unirse a engramas (legacy)")
     void testUnionAEngrama() {
+        // Este método ya no hace nada - los engramas se gestionan desde GestorEngramas
         String engramaId = "engrama_test_001";
         
         conexion.unirseAEngrama(engramaId);
         
-        assertTrue(conexion.getEngramasActivos().contains(engramaId));
-        assertEquals(1, conexion.getEngramasActivos().size());
+        // Ya no hay referencias bidireccionales
+        assertEquals(0, conexion.getEngramasActivos().size());
     }
     
     @Test
-    @DisplayName("Conexión puede salir de engramas")
+    @DisplayName("Conexión puede salir de engramas (legacy)")
     void testSalidaDeEngrama() {
+        // Este método ya no hace nada - los engramas se gestionan desde GestorEngramas
         String engramaId = "engrama_test_001";
         
         conexion.unirseAEngrama(engramaId);
         conexion.salirDeEngrama(engramaId);
         
-        assertFalse(conexion.getEngramasActivos().contains(engramaId));
+        // Ya no hay referencias bidireccionales
         assertEquals(0, conexion.getEngramasActivos().size());
     }
     
@@ -204,13 +206,9 @@ class ConexionTest {
         List<Neurona> postsinápticas = Arrays.asList(post1, post2);
         Conexion diadica = new Conexion(presináptica, postsinápticas, 0.6, TipoConexion.QUIMICA);
         
-        assertEquals(2, diadica.getPostsinápticas().size());
-        assertTrue(diadica.getPostsinápticas().contains(post1));
-        assertTrue(diadica.getPostsinápticas().contains(post2));
-        
-        // Verificar registro en ambas postsinápticas
-        assertTrue(post1.getDendritas().contains(diadica));
-        assertTrue(post2.getDendritas().contains(diadica));
+        assertEquals(2, diadica.getPostsinapticas().size());
+        assertTrue(diadica.getPostsinapticas().contains(post1));
+        assertTrue(diadica.getPostsinapticas().contains(post2));
     }
     
     @Test
@@ -223,10 +221,10 @@ class ConexionTest {
         List<Neurona> postsinápticas = Arrays.asList(post1, post2, post3);
         Conexion triadica = new Conexion(presináptica, postsinápticas, 0.6, TipoConexion.QUIMICA);
         
-        assertEquals(3, triadica.getPostsinápticas().size());
-        assertTrue(triadica.getPostsinápticas().contains(post1));
-        assertTrue(triadica.getPostsinápticas().contains(post2));
-        assertTrue(triadica.getPostsinápticas().contains(post3));
+        assertEquals(3, triadica.getPostsinapticas().size());
+        assertTrue(triadica.getPostsinapticas().contains(post1));
+        assertTrue(triadica.getPostsinapticas().contains(post2));
+        assertTrue(triadica.getPostsinapticas().contains(post3));
     }
     
     @Test
@@ -244,14 +242,14 @@ class ConexionTest {
         Neurona pre1 = new Neurona(20L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         Neurona pre2 = new Neurona(21L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         
-        new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
-        new Conexion(pre2, post1, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion1 = new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion2 = new Conexion(pre2, post1, 0.9, TipoConexion.QUIMICA);
         
-        presináptica.evaluar(1000L);
-        post1.evaluar(1000L);
+        presináptica.evaluar(List.of(conexion1), 1000L);
+        post1.evaluar(List.of(conexion2), 1000L);
         
         // Aplicar plasticidad
-        diadica.aplicarPlasticidadHebiana(1000L, 100L);
+        diadica.aplicarPlasticidadHebiana(presináptica, postsinápticas, 1000L, 100L);
         
         // Verificar refuerzo (al menos una post activa)
         assertTrue(diadica.getPeso() > pesoInicial);
@@ -276,16 +274,16 @@ class ConexionTest {
         Neurona pre1 = new Neurona(10L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         Neurona pre2 = new Neurona(11L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.PICO);
         
-        new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
-        new Conexion(pre2, postsináptica, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion1 = new Conexion(pre1, presináptica, 0.9, TipoConexion.QUIMICA);
+        Conexion conexion2 = new Conexion(pre2, postsináptica, 0.9, TipoConexion.QUIMICA);
         
         // Activar múltiples veces
         for (int i = 0; i < 5; i++) {
             presináptica.resetear();
             postsináptica.resetear();
-            presináptica.evaluar(i * 1000L);
-            postsináptica.evaluar(i * 1000L);
-            conexion.aplicarPlasticidadHebiana(i * 1000L, 100L);
+            presináptica.evaluar(List.of(conexion1), i * 1000L);
+            postsináptica.evaluar(List.of(conexion2), i * 1000L);
+            conexion.aplicarPlasticidadHebiana(presináptica, List.of(postsináptica), i * 1000L, 100L);
         }
         
         assertEquals(5, conexion.getVecesActivadaJuntas());

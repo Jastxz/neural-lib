@@ -131,7 +131,7 @@ public class RedNeuralExperimentalFase6Test {
         red.procesar(new double[]{1.0, 1.0});
         
         // El engrama debe detectar activación
-        boolean estaActivo = engrama.estaActivo(0.3);  // 30% umbral
+        boolean estaActivo = engrama.estaActivo();  // 30% umbral
         
         // Puede estar activo o no, dependiendo de cuántas neuronas se activaron
         assertNotNull(engrama, "El engrama debe existir");

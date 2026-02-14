@@ -1,19 +1,27 @@
 package es.jastxz.nn;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.io.Serializable;
 
 import es.jastxz.nn.enums.TipoConexion;
 
 /**
- * Representa una conexión sináptica entre dos neuronas
+ * Representa una conexión sináptica entre neuronas.
+ * 
+ * Para las neuronas a las que entrega la información es una dendrita, para el otro caso es un axón.
+ * Axones - Conexiones salientes
+ * Dendritas - Conexiones entrantes
+ * 
+ * REFACTORIZACIÓN: Mantiene referencias directas a neuronas pero sin listas bidireccionales
  */
-public class Conexion {
-    private final Neurona presináptica;
-    private final List<Neurona> postsinápticas;  // Soporte para sinapsis diádicas/triádicas
-    private double peso;  // Fuerza sináptica (mutable por plasticidad)
+public class Conexion implements Serializable {
+    private static final long serialVersionUID = 1L;
+    
+    private final Neurona presinaptica;
+    private final List<Neurona> postsinapticas;  // Soporte para sinapsis diádicas/triádicas
+    
+    private double peso;  // Fuerza sináptica (mutable por plasticidad) - puede ser negativo para inhibición
     private final TipoConexion tipo;
     
     // Gestión de recursos (competición sináptica)
@@ -25,14 +33,16 @@ public class Conexion {
     private double tasaRefuerzo;  // Velocidad de cambio del peso
     private static final double TASA_REFUERZO_DEFAULT = 0.02;  // Tasa de aprendizaje
     
-    // Pertenencia a engramas
-    private Set<String> engramasActivos;
-    
-    public Conexion(Neurona presináptica, Neurona postsináptica, 
+    /**
+     * Constructor simple (1 pre → 1 post)
+     */
+    public Conexion(Neurona presinaptica, Neurona postsinaptica, 
                     double pesoInicial, TipoConexion tipo) {
-        this.presináptica = presináptica;
-        this.postsinápticas = new ArrayList<>();
-        this.postsinápticas.add(postsináptica);
+        this.presinaptica = presinaptica;
+        this.postsinapticas = new ArrayList<>();
+        this.postsinapticas.add(postsinaptica);
+        presinaptica.añadirVecina(postsinaptica);
+        postsinaptica.añadirVecina(presinaptica);
         
         this.peso = pesoInicial;
         this.tipo = tipo;
@@ -41,21 +51,17 @@ public class Conexion {
         this.timestampUltimaActivacion = 0L;
         this.vecesActivadaJuntas = 0;
         this.tasaRefuerzo = TASA_REFUERZO_DEFAULT;
-        
-        this.engramasActivos = new HashSet<>();
-        
-        // Registrar conexión bidireccional
-        presináptica.agregarAxon(this);
-        postsináptica.agregarDendrita(this);
     }
     
     /**
-     * Constructor para sinapsis diádicas/triádicas
+     * Constructor para sinapsis diádicas/triádicas (1 pre → N post)
      */
-    public Conexion(Neurona presináptica, List<Neurona> postsinápticas,
+    public Conexion(Neurona presinaptica, List<Neurona> postsinapticas,
                     double pesoInicial, TipoConexion tipo) {
-        this.presináptica = presináptica;
-        this.postsinápticas = new ArrayList<>(postsinápticas);
+        this.presinaptica = presinaptica;
+        this.postsinapticas = postsinapticas;
+        presinaptica.añadirVecinas(postsinapticas);
+        postsinapticas.stream().forEach(n -> n.añadirVecina(presinaptica));
         
         this.peso = pesoInicial;
         this.tipo = tipo;
@@ -64,23 +70,15 @@ public class Conexion {
         this.timestampUltimaActivacion = 0L;
         this.vecesActivadaJuntas = 0;
         this.tasaRefuerzo = TASA_REFUERZO_DEFAULT;
-        
-        this.engramasActivos = new HashSet<>();
-        
-        // Registrar en todas las neuronas
-        presináptica.agregarAxon(this);
-        for (Neurona post : postsinápticas) {
-            post.agregarDendrita(this);
-        }
     }
     
     /**
      * Aplica plasticidad hebiana: refuerza o debilita la conexión
      * Principio: neuronas que se activan juntas, se conectan (pg. 46-47)
      */
-    public void aplicarPlasticidadHebiana(long timestampActual, long ventanaTemporal) {
-        boolean preActiva = presináptica.estaActiva();
-        boolean algunaPostActiva = postsinápticas.stream().anyMatch(Neurona::estaActiva);
+    public void aplicarPlasticidadHebiana(Neurona pre, List<Neurona> post, long timestampActual, long ventanaTemporal) {
+        boolean preActiva = pre.estaActiva();
+        boolean algunaPostActiva = post.stream().anyMatch(Neurona::estaActiva);
         
         // Si ambas activas en ventana temporal cercana
         if (preActiva && algunaPostActiva) {
@@ -103,31 +101,19 @@ public class Conexion {
     
     /**
      * Verifica si la conexión debe ser podada (eliminada)
+     * Solo podar si el peso está muy cerca de 0 (ni excitatorio ni inhibitorio)
      */
     public boolean debeSerPodada() {
-        return peso <= 0.05 || recursosAsignados <= 0.1;
-    }
-    
-    /**
-     * Añade esta conexión a un engrama
-     */
-    public void unirseAEngrama(String engramaId) {
-        engramasActivos.add(engramaId);
-    }
-    
-    /**
-     * Remueve esta conexión de un engrama
-     */
-    public void salirDeEngrama(String engramaId) {
-        engramasActivos.remove(engramaId);
+        return Math.abs(peso) <= 0.05 || recursosAsignados <= 0.1;
     }
     
     // Getters y setters
-    public Neurona getPresinaptica() { return presináptica; }
-    public List<Neurona> getPostsinápticas() { return new ArrayList<>(postsinápticas); }
+    public Neurona getPresinaptica() { return presinaptica; }
+    public List<Neurona> getPostsinapticas() { return postsinapticas; }
     public double getPeso() { return peso; }
     public void setPeso(double peso) { 
-        this.peso = Math.max(0.0, Math.min(1.0, peso)); 
+        // Permitir pesos negativos para inhibición (como neuronas GABAérgicas)
+        this.peso = Math.max(-1.0, Math.min(1.0, peso)); 
     }
     public TipoConexion getTipo() { return tipo; }
     public double getRecursosAsignados() { return recursosAsignados; }
@@ -136,5 +122,31 @@ public class Conexion {
     }
     public long getTimestampUltimaActivacion() { return timestampUltimaActivacion; }
     public int getVecesActivadaJuntas() { return vecesActivadaJuntas; }
-    public Set<String> getEngramasActivos() { return new HashSet<>(engramasActivos); }
+    
+    /**
+     * Método legacy para compatibilidad con tests.
+     * Los engramas ya no mantienen referencias bidireccionales.
+     * @return Siempre devuelve un Set vacío
+     */
+    public java.util.Set<String> getEngramasActivos() { 
+        return new java.util.HashSet<>(); 
+    }
+    
+    /**
+     * Método legacy para compatibilidad con tests.
+     * Los engramas ya no mantienen referencias bidireccionales.
+     * Este método no hace nada.
+     */
+    public void unirseAEngrama(String engramaId) {
+        // No hacer nada - sin referencias bidireccionales
+    }
+    
+    /**
+     * Método legacy para compatibilidad con tests.
+     * Los engramas ya no mantienen referencias bidireccionales.
+     * Este método no hace nada.
+     */
+    public void salirDeEngrama(String engramaId) {
+        // No hacer nada - sin referencias bidireccionales
+    }
 }

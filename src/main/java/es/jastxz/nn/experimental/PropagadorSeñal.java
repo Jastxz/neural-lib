@@ -5,12 +5,17 @@ import es.jastxz.nn.Neurona;
 import es.jastxz.nn.enums.PotencialMemoria;
 
 import java.util.List;
+import java.io.Serializable;
 
 /**
  * Maneja la propagación de señales en la red neuronal
  * Implementa propagación feed-forward y feedback
+ * 
+ * REFACTORIZADO: Ahora itera sobre conexiones en lugar de neuronas
+ * Más eficiente O(n) vs O(n²) y más natural biológicamente
  */
-public class PropagadorSeñal {
+public class PropagadorSeñal implements Serializable {
+    private static final long serialVersionUID = 1L;
     
     /**
      * Establece los valores de entrada en la capa sensorial
@@ -32,21 +37,36 @@ public class PropagadorSeñal {
     
     /**
      * Propagación feed-forward: de sensorial hacia motora
-     * Cada capa evalúa sus neuronas basándose en inputs de la capa anterior
+     * REFACTORIZADO: Itera sobre conexiones en lugar de neuronas
+     * 
+     * @param conexiones Lista de todas las conexiones de la red
+     * @param todasNeuronas Lista de todas las neuronas (para resetear potencial acumulado)
+     * @param timestamp Timestamp actual
      */
-    public void propagarHaciaAdelante(List<List<Neurona>> capasInterneuronas, 
-                                      List<Neurona> capaMotora, 
+    public void propagarHaciaAdelante(List<Conexion> conexiones, 
+                                      List<Neurona> todasNeuronas,
                                       long timestamp) {
-        // Evaluar capas de interneuronas
-        for (List<Neurona> capa : capasInterneuronas) {
-            for (Neurona neurona : capa) {
-                neurona.evaluar(timestamp);
+        // Fase 1: Propagar señales a través de conexiones
+        for (Conexion conexion : conexiones) {
+            Neurona pre = conexion.getPresinaptica();
+            
+            // Si la neurona presináptica está activa, propagar señal
+            if (pre.estaActiva()) {
+                double señal = conexion.getPeso() * pre.getPotencial();
+                
+                // Enviar señal a todas las neuronas postsinápticas
+                for (Neurona post : conexion.getPostsinapticas()) {
+                    post.recibirSeñal(señal);
+                }
             }
         }
         
-        // Evaluar capa motora
-        for (Neurona neurona : capaMotora) {
-            neurona.evaluar(timestamp);
+        // Fase 2: Evaluar activación de todas las neuronas
+        for (Neurona neurona : todasNeuronas) {
+            // No evaluar neuronas sensoriales (ya están activadas por inputs)
+            if (neurona.getTipo() != es.jastxz.nn.enums.TipoNeurona.SENSORIAL) {
+                neurona.evaluarActivacion(timestamp);
+            }
         }
     }
     
@@ -54,48 +74,27 @@ public class PropagadorSeñal {
      * Propagación feedback: de motora hacia sensorial
      * Implementa retroalimentación para refinamiento (pg. 61 Eagleman)
      * 
-     * En esta versión simplificada, el feedback modula la activación
-     * de capas anteriores basándose en la actividad de capas posteriores
+     * REFACTORIZADO: Itera sobre conexiones feedback
+     * 
+     * @param conexionesFeedback Lista de conexiones feedback (de posterior a anterior)
+     * @param todasNeuronas Lista de todas las neuronas
      */
-    public void propagarHaciaAtras(List<Neurona> capaMotora, 
-                                   List<List<Neurona>> capasInterneuronas) {
-        // Feedback desde capa motora
-        if (!capasInterneuronas.isEmpty()) {
-            aplicarFeedbackACapa(capaMotora, capasInterneuronas.get(capasInterneuronas.size() - 1));
-        }
-        
-        // Feedback entre capas de interneuronas (de posterior a anterior)
-        for (int i = capasInterneuronas.size() - 1; i > 0; i--) {
-            aplicarFeedbackACapa(capasInterneuronas.get(i), capasInterneuronas.get(i - 1));
-        }
-    }
-    
-    /**
-     * Aplica feedback de una capa posterior a una anterior
-     * Modula la activación basándose en conexiones feedback
-     */
-    private void aplicarFeedbackACapa(List<Neurona> capaOrigen, List<Neurona> capaDestino) {
-        for (Neurona destino : capaDestino) {
-            double feedbackTotal = 0.0;
-            int contadorFeedback = 0;
+    public void propagarHaciaAtras(List<Conexion> conexionesFeedback,
+                                   List<Neurona> todasNeuronas) {
+        // Fase 1: Propagar señales feedback a través de conexiones
+        for (Conexion conexion : conexionesFeedback) {
+            Neurona pre = conexion.getPresinaptica();
             
-            // Buscar conexiones feedback desde capaOrigen
-            for (Conexion axon : destino.getAxones()) {
-                // Si alguna postsináptica está en capaOrigen y activa
-                for (Neurona post : axon.getPostsinápticas()) {
-                    if (capaOrigen.contains(post) && post.estaActiva()) {
-                        feedbackTotal += axon.getPeso() * post.getPotencial();
-                        contadorFeedback++;
-                    }
+            // Si la neurona presináptica está activa, propagar feedback
+            if (pre.estaActiva()) {
+                double feedbackSeñal = conexion.getPeso() * pre.getPotencial() * 0.1; // Factor de modulación
+                
+                // Enviar feedback a todas las neuronas postsinápticas
+                for (Neurona post : conexion.getPostsinapticas()) {
+                    // Ajustar valor almacenado basándose en feedback
+                    double nuevoValor = post.getValorAlmacenado() + feedbackSeñal;
+                    post.setValorAlmacenado(Math.max(-1.0, Math.min(1.0, nuevoValor)));
                 }
-            }
-            
-            // Aplicar modulación por feedback
-            if (contadorFeedback > 0) {
-                double modulacion = feedbackTotal / contadorFeedback;
-                // Ajustar valor almacenado basándose en feedback
-                double nuevoValor = destino.getValorAlmacenado() + (modulacion * 0.1);
-                destino.setValorAlmacenado(Math.max(-1.0, Math.min(1.0, nuevoValor)));
             }
         }
     }

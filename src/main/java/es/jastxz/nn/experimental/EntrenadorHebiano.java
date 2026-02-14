@@ -1,6 +1,7 @@
 package es.jastxz.nn.experimental;
 
 import java.util.List;
+import java.io.Serializable;
 
 import es.jastxz.nn.Conexion;
 import es.jastxz.nn.Neurona;
@@ -10,7 +11,8 @@ import es.jastxz.nn.Neurona;
  * Implementa el principio: "neuronas que se activan juntas, se conectan"
  * (pg. 46-47 Eagleman)
  */
-public class EntrenadorHebiano {
+public class EntrenadorHebiano implements Serializable {
+    private static final long serialVersionUID = 1L;
     
     /**
      * Aplica plasticidad hebiana a todas las conexiones de la red
@@ -22,7 +24,9 @@ public class EntrenadorHebiano {
         long ventanaTemporal = 100L; // Ventana temporal para STDP
         
         for (Conexion conexion : conexiones) {
-            conexion.aplicarPlasticidadHebiana(timestampActual, ventanaTemporal);
+            Neurona pre = conexion.getPresinaptica();
+            List<Neurona> post = conexion.getPostsinapticas();
+            conexion.aplicarPlasticidadHebiana(pre, post, timestampActual, ventanaTemporal);
         }
     }
     
@@ -30,33 +34,73 @@ public class EntrenadorHebiano {
      * Modula el aprendizaje basándose en el error de predicción
      * Implementa supervisión débil: solo se transmite el error (pg. 64 Eagleman)
      * 
+     * MEJORADO: Permite crear conexiones inhibitorias (pesos negativos) cuando es necesario
+     * 
+     * @param capaMotora Lista de neuronas motoras
+     * @param capasInterneuronas Capas intermedias
      * @param errores Diferencia entre target y output para cada neurona motora
+     * @param todasConexiones Lista de todas las conexiones de la red
      */
     public void modularAprendizajePorError(List<Neurona> capaMotora, 
                                            List<List<Neurona>> capasInterneuronas,
-                                           double[] errores) {
+                                           double[] errores,
+                                           List<Conexion> todasConexiones) {
+        double tasaAprendizaje = 0.5;  // Tasa más agresiva para aprendizaje supervisado
+        
         // Ajustar valores almacenados de neuronas motoras basándose en error
         for (int i = 0; i < capaMotora.size(); i++) {
             Neurona neurona = capaMotora.get(i);
             double error = errores[i];
             
             // Ajustar valor almacenado proporcionalmente al error
-            double ajuste = error * 0.1; // Tasa de aprendizaje
-            double nuevoValor = neurona.getValorAlmacenado() + ajuste;
+            double nuevoValor = neurona.getValorAlmacenado() + error * tasaAprendizaje;
             neurona.setValorAlmacenado(Math.max(-1.0, Math.min(1.0, nuevoValor)));
         }
         
+        // MEJORADO: Iterar sobre conexiones (más eficiente O(n) vs O(n²))
+        // Ajustar pesos de conexiones que llegan a neuronas motoras
+        for (Conexion conexion : todasConexiones) {
+            List<Neurona> postsinapticas = conexion.getPostsinapticas();
+            
+            // Verificar si alguna postsináptica es motora
+            for (int i = 0; i < capaMotora.size(); i++) {
+                if (postsinapticas.contains(capaMotora.get(i))) {
+                    Neurona pre = conexion.getPresinaptica();
+                    double error = errores[i];
+                    
+                    if (pre.estaActiva()) {
+                        // Regla delta mejorada: permite pesos negativos
+                        double ajustePeso = error * tasaAprendizaje * 0.8;
+                        double nuevoPeso = conexion.getPeso() + ajustePeso;
+                        
+                        // Permitir pesos negativos para inhibición
+                        conexion.setPeso(Math.max(-1.0, Math.min(1.0, nuevoPeso)));
+                    }
+                    break; // Ya procesamos esta conexión
+                }
+            }
+        }
+        
         // Propagar señal de error hacia atrás (modulación)
-        propagarErrorHaciaAtras(capaMotora, capasInterneuronas, errores);
+        propagarErrorHaciaAtras(capaMotora, capasInterneuronas, errores, tasaAprendizaje, todasConexiones);
     }
     
     /**
      * Propaga señal de error hacia capas anteriores
      * Permite que capas intermedias ajusten su conocimiento
+     * MEJORADO: Permite crear conexiones inhibitorias
+     * 
+     * @param capaMotora Capa de salida
+     * @param capasInterneuronas Capas intermedias
+     * @param erroresMotora Errores de la capa motora
+     * @param tasaAprendizaje Tasa de aprendizaje
+     * @param todasConexiones Lista de todas las conexiones de la red
      */
     private void propagarErrorHaciaAtras(List<Neurona> capaMotora,
                                         List<List<Neurona>> capasInterneuronas,
-                                        double[] erroresMotora) {
+                                        double[] erroresMotora,
+                                        double tasaAprendizaje,
+                                        List<Conexion> todasConexiones) {
         // Si no hay capas intermedias, no hay nada que propagar
         if (capasInterneuronas.isEmpty()) {
             return;
@@ -71,21 +115,44 @@ public class EntrenadorHebiano {
             int contadorConexiones = 0;
             
             // Acumular error de todas las neuronas motoras conectadas
-            for (Conexion axon : neuronaInter.getAxones()) {
-                for (int j = 0; j < capaMotora.size(); j++) {
-                    if (axon.getPostsinápticas().contains(capaMotora.get(j))) {
-                        errorAcumulado += erroresMotora[j] * axon.getPeso();
-                        contadorConexiones++;
+            // Iterar sobre conexiones donde esta neurona intermedia es presináptica
+            for (Conexion conexion : todasConexiones) {
+                if (conexion.getPresinaptica() == neuronaInter) {
+                    List<Neurona> postsinapticas = conexion.getPostsinapticas();
+                    
+                    for (int j = 0; j < capaMotora.size(); j++) {
+                        if (postsinapticas.contains(capaMotora.get(j))) {
+                            errorAcumulado += erroresMotora[j] * conexion.getPeso();
+                            contadorConexiones++;
+                        }
                     }
                 }
             }
             
-            // Ajustar valor almacenado si hay conexiones
+            // Ajustar valor almacenado y pesos si hay conexiones
             if (contadorConexiones > 0) {
                 double errorPromedio = errorAcumulado / contadorConexiones;
-                double ajuste = errorPromedio * 0.05; // Tasa menor para capas intermedias
-                double nuevoValor = neuronaInter.getValorAlmacenado() + ajuste;
+                
+                // Ajustar valor almacenado
+                double nuevoValor = neuronaInter.getValorAlmacenado() + errorPromedio * tasaAprendizaje * 0.5;
                 neuronaInter.setValorAlmacenado(Math.max(-1.0, Math.min(1.0, nuevoValor)));
+                
+                // MEJORADO: Ajustar pesos de conexiones hacia capa motora (permitir negativos)
+                for (Conexion conexion : todasConexiones) {
+                    if (conexion.getPresinaptica() == neuronaInter && neuronaInter.estaActiva()) {
+                        List<Neurona> postsinapticas = conexion.getPostsinapticas();
+                        
+                        for (int j = 0; j < capaMotora.size(); j++) {
+                            if (postsinapticas.contains(capaMotora.get(j))) {
+                                double ajustePeso = erroresMotora[j] * tasaAprendizaje * 0.6;
+                                double nuevoPeso = conexion.getPeso() + ajustePeso;
+                                // Permitir pesos negativos para inhibición
+                                conexion.setPeso(Math.max(-1.0, Math.min(1.0, nuevoPeso)));
+                                break; // Ya ajustamos esta conexión
+                            }
+                        }
+                    }
+                }
             }
         }
     }

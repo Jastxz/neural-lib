@@ -3,11 +3,14 @@ package es.jastxz.nn;
 import java.util.HashSet;
 import java.util.Set;
 
+import java.io.Serializable;
+
 /**
  * Representa un engrama: conjunto de neuronas y conexiones 
  * que codifican un recuerdo específico
  */
-public class Engrama {
+public class Engrama implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final String id;
     private final Set<Neurona> neuronasParticipantes;
     private final Set<Conexion> conexionesParticipantes;
@@ -47,7 +50,7 @@ public class Engrama {
      */
     public void agregarNeurona(Neurona neurona) {
         neuronasParticipantes.add(neurona);
-        neurona.unirseAEngrama(this.id);
+        // No registrar en neurona - evitar referencias bidireccionales
     }
     
     /**
@@ -55,7 +58,7 @@ public class Engrama {
      */
     public void agregarConexion(Conexion conexion) {
         conexionesParticipantes.add(conexion);
-        conexion.unirseAEngrama(this.id);
+        // No registrar en conexión - evitar referencias bidireccionales
     }
     
     /**
@@ -87,21 +90,22 @@ public class Engrama {
     /**
      * Verifica si el engrama está activo basándose en cuántas neuronas participantes están activas
      */
-    public boolean estaActivo(double umbralActivacion) {
+    public boolean estaActivo() {
         long neuronasActivas = neuronasParticipantes.stream()
             .filter(Neurona::estaActiva)
             .count();
         
         double proporcionActiva = (double) neuronasActivas / neuronasParticipantes.size();
-        return proporcionActiva >= umbralActivacion;  // ej: 0.3 = 30% de neuronas activas
+        double umbralProporcion = 0.3 + Math.random()*100 % 10 / 100;
+        return proporcionActiva >= umbralProporcion;  // Porcentaje mínimo para tener un recuerdo
     }
     
     /**
      * Facilita la activación del resto de neuronas (completado de patrón)
      * Solo si el engrama ya está parcialmente activo
      */
-    public void completarPatron(long timestamp, double umbralActivacion) {
-        if (!estaActivo(umbralActivacion)) {
+    public void completarPatron(long timestamp) {
+        if (!estaActivo()) {
             return;  // No hay suficiente activación inicial
         }
         

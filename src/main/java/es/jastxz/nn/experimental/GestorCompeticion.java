@@ -5,12 +5,14 @@ import es.jastxz.nn.Neurona;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.io.Serializable;
 
 /**
  * Gestiona la competición por recursos y poda de elementos
  * Implementa el principio de Eagleman (pg. 18-19, 229-230): "supervivencia del más útil"
  */
-public class GestorCompeticion {
+public class GestorCompeticion implements Serializable {
+    private static final long serialVersionUID = 1L;
     
     private boolean competicionActiva;
     private long ultimaCompeticion;
@@ -99,15 +101,7 @@ public class GestorCompeticion {
         }
         
         // Eliminar conexiones podadas
-        for (Conexion conexion : conexionesAPodar) {
-            conexiones.remove(conexion);
-            
-            conexion.getPresinaptica().getAxones().remove(conexion);
-            
-            for (Neurona post : conexion.getPostsinápticas()) {
-                post.getDendritas().remove(conexion);
-            }
-        }
+        conexionesAPodar.stream().forEach(c -> conexiones.remove(c));
         
         return conexionesAPodar.size();
     }

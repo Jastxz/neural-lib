@@ -7,12 +7,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.io.Serializable;
 
 /**
  * Gestiona la detección y formación de engramas
  * Implementa el principio de Campillo (pg. 84-85): "conjunto de neuronas que funcionan como bits"
  */
-public class GestorEngramas {
+public class GestorEngramas implements Serializable {
+    private static final long serialVersionUID = 1L;
     
     private boolean deteccionActiva;
     private int contadorEngramas;
@@ -48,13 +50,8 @@ public class GestorEngramas {
      * Elimina un engrama por ID
      */
     public void eliminarEngrama(String id) {
-        Engrama engrama = engramas.remove(id);
-        if (engrama != null) {
-            // Desregistrar de neuronas
-            for (Neurona neurona : engrama.getNeuronas()) {
-                neurona.abandonarEngrama(id);
-            }
-        }
+        engramas.remove(id);
+        // No necesitamos desregistrar de neuronas - sin referencias bidireccionales
     }
     
     public void formarEngrama(String id, List<Neurona> participantes, long timestamp) {
@@ -68,10 +65,7 @@ public class GestorEngramas {
         
         Engrama engrama = new Engrama(id, participantes, timestamp);
         engramas.put(id, engrama);
-        
-        for (Neurona neurona : participantes) {
-            neurona.unirseAEngrama(id);
-        }
+        // No registrar en neuronas - sin referencias bidireccionales
     }
     
     public void activarEngrama(String id, long timestamp) {
@@ -84,33 +78,71 @@ public class GestorEngramas {
         engrama.activar(timestamp);
     }
     
+    /**
+     * Detecta y forma engramas basándose en patrones de activación
+     * MEJORADO: Detecta patrones más diversos y no solo por capa
+     */
     public void detectarYFormarEngramas(List<List<Neurona>> capasInterneuronas, long timestamp) {
         if (!deteccionActiva) {
             return;
         }
         
-        for (int i = 0; i < capasInterneuronas.size(); i++) {
-            List<Neurona> capa = capasInterneuronas.get(i);
-            
-            List<Neurona> neuronasActivas = new ArrayList<>();
+        // Recolectar todas las neuronas activas de todas las capas
+        List<Neurona> todasNeuronasActivas = new ArrayList<>();
+        for (List<Neurona> capa : capasInterneuronas) {
             for (Neurona neurona : capa) {
                 if (neurona.estaActiva()) {
-                    neuronasActivas.add(neurona);
+                    todasNeuronasActivas.add(neurona);
+                }
+            }
+        }
+        
+        // Si hay suficientes neuronas activas, considerar formar un engrama
+        if (todasNeuronasActivas.size() >= 2) {
+            // Verificar si ya existe un engrama similar
+            boolean yaExiste = false;
+            for (Engrama engramaExistente : engramas.values()) {
+                // Reducir umbral de solapamiento de 0.7 a 0.5 para permitir más variación
+                if (engramaExistente.contieneNeuronas(todasNeuronasActivas, 0.5)) {
+                    yaExiste = true;
+                    // Reforzar el engrama existente
+                    engramaExistente.activar(timestamp);
+                    break;
                 }
             }
             
-            if (neuronasActivas.size() >= 2) {
-                boolean yaExiste = false;
+            // Si no existe, formar nuevo engrama
+            if (!yaExiste) {
+                String id = "auto_" + contadorEngramas++;
+                formarEngrama(id, todasNeuronasActivas, timestamp);
+            }
+        }
+        
+        // ADICIONAL: Detectar patrones por capa también (para patrones locales)
+        for (int i = 0; i < capasInterneuronas.size(); i++) {
+            List<Neurona> capa = capasInterneuronas.get(i);
+            
+            List<Neurona> neuronasActivasCapa = new ArrayList<>();
+            for (Neurona neurona : capa) {
+                if (neurona.estaActiva()) {
+                    neuronasActivasCapa.add(neurona);
+                }
+            }
+            
+            // Formar engramas locales si hay suficientes neuronas activas
+            if (neuronasActivasCapa.size() >= 3) {
+                boolean yaExisteLocal = false;
                 for (Engrama engramaExistente : engramas.values()) {
-                    if (engramaExistente.contieneNeuronas(neuronasActivas, 0.7)) {
-                        yaExiste = true;
+                    if (engramaExistente.contieneNeuronas(neuronasActivasCapa, 0.6)) {
+                        yaExisteLocal = true;
+                        engramaExistente.activar(timestamp);
                         break;
                     }
                 }
                 
-                if (!yaExiste) {
-                    String id = "auto_" + contadorEngramas++;
-                    formarEngrama(id, neuronasActivas, timestamp);
+                if (!yaExisteLocal) {
+                    String id = "local_capa" + i + "_" + contadorEngramas++;
+                    formarEngrama(id, neuronasActivasCapa, timestamp);
                 }
             }
         }
