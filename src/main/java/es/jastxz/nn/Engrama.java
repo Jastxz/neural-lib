@@ -166,4 +166,11 @@ public class Engrama implements Serializable {
     public void setRelevancia(double relevancia) { 
         this.relevancia = Math.max(0.0, Math.min(2.0, relevancia)); 
     }
+    
+    public void setFuerza(double fuerza) {
+        if (fuerza < 0.0 || fuerza > 1.0) {
+            throw new IllegalArgumentException("La fuerza debe estar entre 0.0 y 1.0, recibido: " + fuerza);
+        }
+        this.fuerza = fuerza;
+    }
 }

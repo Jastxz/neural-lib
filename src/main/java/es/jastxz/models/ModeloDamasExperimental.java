@@ -57,17 +57,18 @@ public class ModeloDamasExperimental {
     
     /**
      * Entrenamiento NO supervisado mediante self-play
+     * MEJORADO: Consolidación adaptativa automática (sin intervalos fijos)
      */
     public void entrenarSelfPlay(int numPartidas) {
         System.out.println("=== Entrenamiento Self-Play Damas (No Supervisado) ===");
         System.out.println("Partidas a jugar: " + numPartidas);
+        System.out.println("Consolidación: Adaptativa (basada en tiempo de procesamiento)");
         
         for (int partida = 0; partida < numPartidas; partida++) {
             jugarPartidaEntrenamiento();
             
-            // Cada 20 partidas: consolidar y mostrar progreso
+            // Mostrar progreso cada 20 partidas (sin consolidar manualmente)
             if ((partida + 1) % 20 == 0) {
-                consolidar();
                 mostrarProgreso(partida + 1, numPartidas);
             }
         }
@@ -297,7 +298,9 @@ public class ModeloDamasExperimental {
     }
     
     /**
-     * Consolida el aprendizaje
+     * Consolida el aprendizaje manualmente (opcional)
+     * NOTA: La consolidación ahora es automática y adaptativa durante entrenar()
+     * Este método se mantiene para compatibilidad pero ya no es necesario llamarlo
      */
     private void consolidar() {
         cerebro.iniciarConsolidacion();
@@ -310,19 +313,33 @@ public class ModeloDamasExperimental {
     
     /**
      * Muestra progreso del entrenamiento
+     * MEJORADO: Incluye métricas de consolidación adaptativa
      */
     private void mostrarProgreso(int partidasActuales, int partidasTotales) {
         double porcentaje = (partidasActuales * 100.0) / partidasTotales;
-        System.out.printf("Progreso: %d/%d (%.1f%%) - Blancas: %d, Negras: %d, Empates: %d, Engramas: %d\n",
+        Map<String, Object> stats = cerebro.getEstadisticas();
+        
+        System.out.printf("Progreso: %d/%d (%.1f%%) - Blancas: %d, Negras: %d, Empates: %d\n",
             partidasActuales, partidasTotales, porcentaje,
-            victoriasBlancas, victoriasNegras, empates,
-            cerebro.getEngramas().size());
+            victoriasBlancas, victoriasNegras, empates);
+        System.out.printf("  Engramas: %d (formados: %d, fusionados: %d, podados: %d)\n",
+            stats.get("totalEngramas"),
+            stats.get("engramasFormados"),
+            stats.get("engramasFusionados"),
+            stats.get("engramasPodados"));
+        System.out.printf("  Consolidación: intervalo=%d, tiempo promedio=%.1fms\n",
+            stats.get("intervaloConsolidacion"),
+            stats.get("tiempoPromedioIteracion"));
     }
     
     /**
      * Muestra estadísticas finales
+     * MEJORADO: Incluye métricas detalladas de engramas y consolidación
      */
     private void mostrarEstadisticas() {
+        Map<String, Object> stats = cerebro.getEstadisticas();
+        
+        System.out.println("\n--- Estadísticas de Partidas ---");
         System.out.println("Partidas jugadas: " + partidasJugadas);
         System.out.println("Victorias Blancas: " + victoriasBlancas + " (" + 
             String.format("%.1f%%", victoriasBlancas * 100.0 / partidasJugadas) + ")");
@@ -330,8 +347,25 @@ public class ModeloDamasExperimental {
             String.format("%.1f%%", victoriasNegras * 100.0 / partidasJugadas) + ")");
         System.out.println("Empates: " + empates + " (" + 
             String.format("%.1f%%", empates * 100.0 / partidasJugadas) + ")");
-        System.out.println("Engramas formados: " + cerebro.getEngramas().size());
-        System.out.println("Conexiones totales: " + cerebro.getTotalConexiones());
+        
+        System.out.println("\n--- Estadísticas de Red ---");
+        System.out.println("Neuronas totales: " + stats.get("totalNeuronas"));
+        System.out.println("Conexiones totales: " + stats.get("totalConexiones"));
+        
+        System.out.println("\n--- Estadísticas de Engramas ---");
+        System.out.println("Engramas actuales: " + stats.get("totalEngramas"));
+        System.out.println("Engramas formados: " + stats.get("engramasFormados"));
+        System.out.println("Engramas fusionados: " + stats.get("engramasFusionados"));
+        System.out.println("Engramas podados: " + stats.get("engramasPodados"));
+        System.out.printf("Tamaño promedio: %.1f neuronas (%.1f%% de la red)\n",
+            stats.get("tamañoPromedioEngramas"),
+            stats.get("porcentajePromedioNeuronas"));
+        
+        System.out.println("\n--- Consolidación Adaptativa ---");
+        System.out.println("Inicializada: " + stats.get("consolidacionInicializada"));
+        System.out.println("Intervalo actual: " + stats.get("intervaloConsolidacion") + " iteraciones");
+        System.out.printf("Tiempo promedio por iteración: %.2fms\n", 
+            stats.get("tiempoPromedioIteracion"));
     }
     
     /**

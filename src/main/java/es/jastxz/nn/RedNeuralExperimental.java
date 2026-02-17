@@ -9,6 +9,7 @@ import es.jastxz.nn.experimental.PropagadorSeñal;
 import es.jastxz.nn.experimental.GestorEngramas;
 import es.jastxz.nn.experimental.GestorPredicciones;
 import es.jastxz.nn.experimental.GestorCompeticion;
+import es.jastxz.nn.experimental.GestorConsolidacionAdaptativa;
 
 import java.io.*;
 import java.util.*;
@@ -83,6 +84,7 @@ public class RedNeuralExperimental implements Serializable {
     private final GestorEngramas gestorEngramas;
     private final GestorPredicciones gestorPredicciones;
     private final GestorCompeticion gestorCompeticion;
+    private final GestorConsolidacionAdaptativa gestorConsolidacionAdaptativa;
     
     /**
      * Constructor con topología configurable
@@ -120,11 +122,16 @@ public class RedNeuralExperimental implements Serializable {
         
         this.propagador = new PropagadorSeñal();
         this.entrenador = new EntrenadorHebiano();
-        this.gestorEngramas = new GestorEngramas();
+        
+        // Inicializar capas primero para poder calcular total de neuronas
+        inicializarCapas();
+        
+        // Ahora podemos crear GestorEngramas con el total de neuronas
+        this.gestorEngramas = new GestorEngramas(getTotalNeuronas());
         this.gestorPredicciones = new GestorPredicciones(topologia[topologia.length - 1]);
         this.gestorCompeticion = new GestorCompeticion();
+        this.gestorConsolidacionAdaptativa = new GestorConsolidacionAdaptativa();
         
-        inicializarCapas();
         generarConexiones();
     }
     
@@ -452,6 +459,8 @@ public class RedNeuralExperimental implements Serializable {
      * Implementa el principio: "neuronas que se activan juntas, se conectan"
      * (pg. 46-47 Eagleman)
      * 
+     * MEJORADO: Consolidación adaptativa basada en tiempo de procesamiento
+     * 
      * @param inputs Array de valores de entrada
      * @param targets Array de valores objetivo (supervisión débil)
      * @param iteraciones Número de veces que se presenta el patrón
@@ -465,6 +474,9 @@ public class RedNeuralExperimental implements Serializable {
         }
         
         for (int i = 0; i < iteraciones; i++) {
+            // Medir tiempo de iteración
+            long tiempoInicio = System.currentTimeMillis();
+            
             // Procesar inputs
             double[] outputs = procesar(inputs);
             
@@ -479,6 +491,20 @@ public class RedNeuralExperimental implements Serializable {
             
             // Modular aprendizaje basándose en error (supervisión débil)
             entrenador.modularAprendizajePorError(capaMotora, capasInterneuronas, errores, conexiones);
+            
+            // Medir tiempo transcurrido
+            long tiempoFin = System.currentTimeMillis();
+            long duracionMs = tiempoFin - tiempoInicio;
+            
+            // Registrar tiempo en gestor de consolidación adaptativa
+            gestorConsolidacionAdaptativa.registrarTiempo(duracionMs);
+            
+            // Verificar si debe consolidar
+            if (gestorConsolidacionAdaptativa.debeConsolidar()) {
+                iniciarConsolidacion();
+                consolidar();
+                finalizarConsolidacion();
+            }
             
             // Avanzar tiempo para ventana temporal
             avanzarTiempo(10L);
@@ -666,6 +692,8 @@ public class RedNeuralExperimental implements Serializable {
      * Revisa engramas formados, fortalece los importantes, debilita los irrelevantes
      * (pg. 87 Campillo: "consolida los más importantes")
      * (pg. 89 Campillo: "Olvido gradual pero parcial")
+     * 
+     * MEJORADO: Incluye optimización de engramas (clustering y fusión)
      */
     public void consolidar() {
         if (estado != EstadoRed.CONSOLIDANDO) {
@@ -704,6 +732,9 @@ public class RedNeuralExperimental implements Serializable {
         for (String id : engramasAEliminar) {
             gestorEngramas.eliminarEngrama(id);
         }
+        
+        // Optimizar engramas (clustering y fusión)
+        gestorEngramas.optimizarEngramas();
         
         // Ajuste fino de pesos sinápticos (consolidación de conocimiento)
         consolidarPesosSinapticos();
@@ -771,6 +802,19 @@ public class RedNeuralExperimental implements Serializable {
         long neuronasActivas = contarNeuronasActivas();
         stats.put("neuronasActivas", neuronasActivas);
         stats.put("porcentajeActivacion", (double)neuronasActivas / getTotalNeuronas() * 100.0);
+        
+        // Estadísticas de engramas
+        GestorEngramas.EstadisticasEngramas estadisticasEngramas = gestorEngramas.getEstadisticas();
+        stats.put("engramasFormados", estadisticasEngramas.totalFormados);
+        stats.put("engramasFusionados", estadisticasEngramas.totalFusionados);
+        stats.put("engramasPodados", estadisticasEngramas.totalPodados);
+        stats.put("tamañoPromedioEngramas", estadisticasEngramas.tamañoPromedio);
+        stats.put("porcentajePromedioNeuronas", estadisticasEngramas.porcentajePromedioNeuronas);
+        
+        // Estadísticas de consolidación adaptativa
+        stats.put("consolidacionInicializada", gestorConsolidacionAdaptativa.estaInicializado());
+        stats.put("intervaloConsolidacion", gestorConsolidacionAdaptativa.getIntervaloActual());
+        stats.put("tiempoPromedioIteracion", gestorConsolidacionAdaptativa.getTiempoPromedioMs());
         
         return stats;
     }

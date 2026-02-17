@@ -239,8 +239,6 @@ class EngramaTest {
         Conexion conexion = new Conexion(pre, neurona1, 0.9, TipoConexion.QUIMICA);
         neurona1.evaluar(List.of(conexion), 1000L);
         
-        long timestampInicial = engrama.getTimestampUltimaActivacion();
-        
         // Con el bug del umbral, el engrama siempre está "activo"
         // así que completarPatron() siempre actualiza el timestamp
         engrama.completarPatron(5000L);
@@ -357,9 +355,30 @@ class EngramaTest {
         
         // Crear input débil para neurona2 (que normalmente no activaría)
         Neurona pre2 = new Neurona(11L, TipoNeurona.SENSORIAL, 0.0, PotencialMemoria.REPOSO);
-        Conexion conexion2 = new Conexion(pre2, neurona2, 0.3, TipoConexion.QUIMICA);
+        new Conexion(pre2, neurona2, 0.3, TipoConexion.QUIMICA);
         
         // No evaluar pre2 porque está en REPOSO, solo verificar que el engrama está activo
         assertTrue(engrama.estaActivo());
+    }
+    
+    @Test
+    @DisplayName("setFuerza valida rango [0.0, 1.0]")
+    void testSetFuerzaValidacion() {
+        // Valores válidos
+        engrama.setFuerza(0.0);
+        assertEquals(0.0, engrama.getFuerza(), 0.001);
+        
+        engrama.setFuerza(0.5);
+        assertEquals(0.5, engrama.getFuerza(), 0.001);
+        
+        engrama.setFuerza(1.0);
+        assertEquals(1.0, engrama.getFuerza(), 0.001);
+        
+        // Valores inválidos deben lanzar excepción
+        assertThrows(IllegalArgumentException.class, () -> engrama.setFuerza(-0.1),
+            "Debe rechazar valores negativos");
+        
+        assertThrows(IllegalArgumentException.class, () -> engrama.setFuerza(1.1),
+            "Debe rechazar valores mayores a 1.0");
     }
 }
