@@ -19,18 +19,23 @@ public class PropagadorSeñal implements Serializable {
     
     /**
      * Establece los valores de entrada en la capa sensorial
+     * 
+     * REFACTORIZADO: Activa neuronas sensoriales basándose en input
+     * NO usa valorAlmacenado (conceptualmente incorrecto)
+     * 
+     * Las neuronas sensoriales se activan si el input supera un umbral mínimo
      */
     public void establecerInputs(List<Neurona> capaSensorial, double[] inputs, long timestamp) {
         for (int i = 0; i < inputs.length; i++) {
             Neurona neurona = capaSensorial.get(i);
             
-            // Establecer valor almacenado
-            neurona.setValorAlmacenado(inputs[i]);
-            
-            // Si el input es significativo, activar la neurona directamente
-            if (Math.abs(inputs[i]) > 0.1) {
-                // Activar directamente (simula input sensorial)
+            // Activar neurona si el input es significativo (>0.05)
+            // Umbral bajo para permitir que inputs pequeños también activen neuronas
+            if (Math.abs(inputs[i]) > 0.05) {
                 neurona.activar(timestamp);
+            } else {
+                // Si el input es muy bajo, resetear la neurona
+                neurona.resetear();
             }
         }
     }
@@ -74,7 +79,8 @@ public class PropagadorSeñal implements Serializable {
      * Propagación feedback: de motora hacia sensorial
      * Implementa retroalimentación para refinamiento (pg. 61 Eagleman)
      * 
-     * REFACTORIZADO: Itera sobre conexiones feedback
+     * REFACTORIZADO: Ajusta SOLO pesos de conexiones feedback
+     * NO ajusta valorAlmacenado de neuronas (conceptualmente incorrecto)
      * 
      * @param conexionesFeedback Lista de conexiones feedback (de posterior a anterior)
      * @param todasNeuronas Lista de todas las neuronas
@@ -82,39 +88,71 @@ public class PropagadorSeñal implements Serializable {
     public void propagarHaciaAtras(List<Conexion> conexionesFeedback,
                                    List<Neurona> todasNeuronas) {
         // Fase 1: Propagar señales feedback a través de conexiones
+        // El feedback modula ligeramente los pesos (refinamiento)
         for (Conexion conexion : conexionesFeedback) {
             Neurona pre = conexion.getPresinaptica();
             
             // Si la neurona presináptica está activa, propagar feedback
             if (pre.estaActiva()) {
-                double feedbackSeñal = conexion.getPeso() * pre.getPotencial() * 0.1; // Factor de modulación
+                double feedbackSeñal = conexion.getPeso() * pre.getPotencial() * 0.01; // Factor de modulación muy pequeño
                 
-                // Enviar feedback a todas las neuronas postsinápticas
-                for (Neurona post : conexion.getPostsinapticas()) {
-                    // Ajustar valor almacenado basándose en feedback
-                    double nuevoValor = post.getValorAlmacenado() + feedbackSeñal;
-                    post.setValorAlmacenado(Math.max(-1.0, Math.min(1.0, nuevoValor)));
-                }
+                // Ajustar peso de la conexión feedback basándose en activación
+                // Esto implementa refinamiento hebiano bidireccional
+                double ajustePeso = feedbackSeñal * 0.1;
+                double nuevoPeso = conexion.getPeso() + ajustePeso;
+                conexion.setPeso(Math.max(-1.0, Math.min(1.0, nuevoPeso)));
             }
         }
     }
     
     /**
      * Extrae los valores de salida de la capa motora
+     * 
+     * REFACTORIZADO: Calcula output basándose en pesos de conexiones (conocimiento)
+     * en lugar de valorAlmacenado (que es conceptualmente incorrecto).
+     * 
+     * Principio biológico:
+     * - Neuronas: Procesadores (integran y disparan)
+     * - Sinapsis: Memoria (almacenan conocimiento en sus pesos)
+     * - Output: Suma ponderada de conexiones activas
+     * 
+     * @param capaMotora Lista de neuronas motoras
+     * @param conexiones Lista de todas las conexiones de la red
+     * @return Array de valores de salida
      */
-    public double[] getOutputs(List<Neurona> capaMotora) {
+    public double[] getOutputs(List<Neurona> capaMotora, List<Conexion> conexiones) {
         double[] outputs = new double[capaMotora.size()];
         
         for (int i = 0; i < capaMotora.size(); i++) {
-            Neurona neurona = capaMotora.get(i);
+            Neurona neuronaMotora = capaMotora.get(i);
             
-            // Combinar potencial y valor almacenado
-            // Si está activa, usar potencial normalizado
-            if (neurona.estaActiva()) {
-                outputs[i] = neurona.getPotencial() / PotencialMemoria.PICO.getValor();
+            // Calcular output basándose en conexiones que llegan a esta neurona motora
+            double sumaConexiones = 0.0;
+            int contadorConexiones = 0;
+            
+            for (Conexion c : conexiones) {
+                // Verificar si esta conexión llega a la neurona motora
+                if (c.getPostsinapticas().contains(neuronaMotora)) {
+                    Neurona pre = c.getPresinaptica();
+                    
+                    // Solo considerar conexiones desde neuronas activas
+                    if (pre.estaActiva()) {
+                        // El conocimiento está en el peso de la conexión
+                        sumaConexiones += c.getPeso();
+                        contadorConexiones++;
+                    }
+                }
+            }
+            
+            // Output: promedio de pesos de conexiones activas
+            // Normalizado entre 0 y 1 (asumiendo pesos en [-1, 1])
+            if (contadorConexiones > 0) {
+                double promedio = sumaConexiones / contadorConexiones;
+                // Normalizar de [-1, 1] a [0, 1]
+                outputs[i] = (promedio + 1.0) / 2.0;
             } else {
-                // Si no está activa, usar valor almacenado
-                outputs[i] = neurona.getValorAlmacenado();
+                // Si no hay conexiones activas, output es 0
+                outputs[i] = 0.0;
             }
         }
         

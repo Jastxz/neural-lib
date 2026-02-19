@@ -64,11 +64,11 @@ public class ModeloDamasExperimental {
         System.out.println("Partidas a jugar: " + numPartidas);
         System.out.println("Consolidación: Adaptativa (basada en tiempo de procesamiento)");
         
+        int progresoPartida = (int) Math.round(numPartidas*0.1);
         for (int partida = 0; partida < numPartidas; partida++) {
             jugarPartidaEntrenamiento();
             
-            // Mostrar progreso cada 20 partidas (sin consolidar manualmente)
-            if ((partida + 1) % 20 == 0) {
+            if ((partida + 1) % progresoPartida == 0) {
                 mostrarProgreso(partida + 1, numPartidas);
             }
         }
@@ -85,7 +85,7 @@ public class ModeloDamasExperimental {
         int turno = 1; // Empiezan blancas
         
         List<EstadoJuego> historial = new ArrayList<>();
-        int maxMovimientos = 200;
+        int maxMovimientos = 120;
         int movimientos = 0;
         
         // Jugar hasta el final

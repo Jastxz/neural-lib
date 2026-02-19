@@ -15,13 +15,6 @@ public class Neurona implements Serializable {
     // Identificación
     private final long id;
     private final TipoNeurona tipo;
-
-    // Este valor es:
-    // Diferente del potencial (que es transitorio, electroquímico)
-    // Persistente - representa el "conocimiento" que la neurona aporta al programa
-    // Actualizable mediante aprendizaje/consolidación
-    // Utilizado en cómputos cuando la red ejecuta programas aprendidos
-    private double valorAlmacenado;  // "Opinión" de la neurona para programas entre -1 y 1
     
     // Estado electroquímico
     private PotencialMemoria potencial;  // Potencial de membrana actual
@@ -40,10 +33,20 @@ public class Neurona implements Serializable {
 
     private List<Neurona> vecinas;
     
+    /**
+     * Constructor de Neurona
+     * 
+     * NOTA: El parámetro valorAlmacenado se mantiene por compatibilidad con código existente
+     * pero se ignora. El conocimiento está en las conexiones (pesos sinápticos), no en las neuronas.
+     * 
+     * @param id Identificador único
+     * @param tipo Tipo de neurona (SENSORIAL, INTER, MOTORA)
+     * @param valorAlmacenado DEPRECATED - Se ignora (mantener por compatibilidad)
+     * @param potencialInicial Potencial de membrana inicial
+     */
     public Neurona(long id, TipoNeurona tipo, double valorAlmacenado, PotencialMemoria potencialInicial) {
         this.id = id;
         this.tipo = tipo;
-        this.valorAlmacenado = valorAlmacenado;
         this.potencial = potencialInicial;
         
         // Si se inicializa con potencial de pico, marcar como activa
@@ -129,8 +132,8 @@ public class Neurona implements Serializable {
         // UMBRAL = -55mV, REPOSO = -70mV, PICO = 40mV
         // Rango total: 40 - (-70) = 110mV
         // Diferencia umbral-reposo: -55 - (-70) = 15mV
-        // Umbral normalizado: 15/110 ≈ 0.136 (aproximadamente 13.6% del rango)
-        double umbralNormalizado = 15.0; // Umbral en mV sobre el reposo
+        // Umbral normalizado: 15/110 ≈ 0.1363 (aproximadamente 13.63% del rango)
+        double umbralNormalizado = 15.0 / 110.0; // 0.1363 - valor biológicamente correcto
         double umbralAjustado = umbralNormalizado * (1.0 - facilitacionTemporal);
         
         // Activación todo-o-nada
@@ -172,7 +175,7 @@ public class Neurona implements Serializable {
     /**
      * Resetea la neurona a estado de reposo
      * Solo resetea estado transitorio (potencial, activación)
-     * Preserva conocimiento aprendido (valorAlmacenado, conexiones, engramas)
+     * Preserva conocimiento aprendido (pesos de conexiones, engramas)
      */
     public void resetear() {
         this.activa = false;
@@ -225,8 +228,6 @@ public class Neurona implements Serializable {
     // Getters y setters
     public long getId() { return id; }
     public TipoNeurona getTipo() { return tipo; }
-    public double getValorAlmacenado() {return valorAlmacenado; }
-    public void setValorAlmacenado(double valorAlmacenado) {this.valorAlmacenado = valorAlmacenado; }
     public double getPotencial() { return potencial.getValor(); }
     public void setPotencial(PotencialMemoria potencial) { this.potencial = potencial; }
     public boolean estaActiva() { return activa; }

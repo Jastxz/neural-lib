@@ -252,7 +252,9 @@ public class GestorEngramas implements Serializable {
      * 1. Identificar engramas muy similares para fusión (>90%)
      * 2. Fusionar engramas similares
      * 3. Aplicar clustering a engramas grandes (>15% de neuronas)
-     * 4. Podar engramas con baja relevancia (<0.15)
+     * 4. Podar engramas con baja relevancia (<0.05)
+     * 
+     * AJUSTADO: Umbral de poda reducido para mantener más engramas
      */
     public void optimizarEngramas() {
         List<Engrama> listaEngramas = new ArrayList<>(engramas.values());
@@ -273,9 +275,10 @@ public class GestorEngramas implements Serializable {
         }
         
         // 4. Podar engramas con baja relevancia
+        // AJUSTADO: Umbral reducido a 0.05 (antes 0.15) para mantener más engramas
         List<String> idsAPodar = new ArrayList<>();
         for (Map.Entry<String, Engrama> entry : engramas.entrySet()) {
-            if (entry.getValue().getRelevancia() < 0.15) {
+            if (entry.getValue().getRelevancia() < 0.05) {
                 idsAPodar.add(entry.getKey());
             }
         }
@@ -496,5 +499,101 @@ public class GestorEngramas implements Serializable {
                 tamañoPromedio, porcentajePromedioNeuronas, tamañoMin, tamañoMax
             );
         }
+    }
+
+    /**
+     * Activa engramas parcialmente activos y facilita sus neuronas
+     * Implementa el principio de Campillo (pg. 93): "el cerebro completa recuerdos parciales"
+     * 
+     * Proceso:
+     * 1. Detectar engramas con activación parcial (>30% de neuronas activas)
+     * 2. Facilitar las neuronas restantes del engrama (reducir umbral)
+     * 3. Esto permite que el patrón se complete en la siguiente propagación
+     * 
+     * IMPORTANTE: Solo facilita, no activa directamente (para no interferir con procesamiento)
+     * AJUSTADO: Umbral reducido a 30% para activación más agresiva
+     * 
+     * @param timestamp Timestamp actual para registrar activación
+     */
+    public void activarEngramasParciales(long timestamp) {
+        if (!deteccionActiva) {
+            return;
+        }
+        
+        for (Engrama engrama : engramas.values()) {
+            List<Neurona> neuronasEngrama = engrama.getNeuronas();
+            
+            if (neuronasEngrama.isEmpty()) {
+                continue;
+            }
+            
+            // Contar cuántas neuronas del engrama están activas
+            int neuronasActivas = 0;
+            for (Neurona n : neuronasEngrama) {
+                if (n.estaActiva()) {
+                    neuronasActivas++;
+                }
+            }
+            
+            // Calcular porcentaje de activación
+            double porcentajeActivo = (double) neuronasActivas / neuronasEngrama.size();
+            
+            // AJUSTADO: Umbral reducido a 30% (antes 50%) para activación más agresiva
+            // Esto permite que los engramas se activen con menos neuronas activas
+            if (porcentajeActivo > 0.3 && porcentajeActivo < 1.0) {
+                // Activar el engrama (registrar uso)
+                engrama.activar(timestamp);
+                
+                // Facilitar las neuronas inactivas del engrama
+                // Esto reduce su umbral de activación temporalmente
+                double umbral = es.jastxz.nn.enums.PotencialMemoria.UMBRAL.getValor();
+                
+                for (Neurona n : neuronasEngrama) {
+                    if (!n.estaActiva()) {
+                        double potencialActual = n.getPotencial();
+                        
+                        // AJUSTADO: Umbral reducido a 50% (antes 70%) para facilitar más neuronas
+                        if (potencialActual > umbral * 0.5) {
+                            // Facilitar activación (reduce umbral temporalmente)
+                            // Factor basado en qué tan activo está el engrama
+                            n.facilitarActivacion(porcentajeActivo);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Obtiene engramas que coinciden con el patrón de activación actual
+     * Útil para análisis y debugging
+     * 
+     * @return Lista de IDs de engramas activos (>30% de neuronas activas)
+     */
+    public List<String> getEngramasActivos() {
+        List<String> activos = new ArrayList<>();
+        
+        for (Map.Entry<String, Engrama> entry : engramas.entrySet()) {
+            List<Neurona> neuronasEngrama = entry.getValue().getNeuronas();
+            
+            if (neuronasEngrama.isEmpty()) {
+                continue;
+            }
+            
+            int neuronasActivas = 0;
+            for (Neurona n : neuronasEngrama) {
+                if (n.estaActiva()) {
+                    neuronasActivas++;
+                }
+            }
+            
+            double porcentajeActivo = (double) neuronasActivas / neuronasEngrama.size();
+            
+            if (porcentajeActivo > 0.3) {
+                activos.add(entry.getKey());
+            }
+        }
+        
+        return activos;
     }
 }

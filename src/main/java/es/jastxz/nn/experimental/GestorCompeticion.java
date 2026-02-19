@@ -42,7 +42,10 @@ public class GestorCompeticion implements Serializable {
             return;
         }
         
-        long ventanaTemporal = 20L;
+        // AJUSTADO: Ventana temporal más larga para dar tiempo a que se usen las conexiones
+        // Con avance de 10L por iteración, 20L es solo 2 iteraciones
+        // Aumentamos a 200L para dar ~20 iteraciones de margen
+        long ventanaTemporal = 200L;
         
         // Competición entre neuronas
         competirNeuronas(capaSensorial, ventanaTemporal, timestampActual, 0.03, 0.02);

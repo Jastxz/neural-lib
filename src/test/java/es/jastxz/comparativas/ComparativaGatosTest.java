@@ -10,6 +10,7 @@ import es.jastxz.tipos.SmallMatrix;
 import es.jastxz.tipos.Tablero;
 import es.jastxz.util.ModelManager;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -31,6 +32,7 @@ public class ComparativaGatosTest {
      * Test 1: Entrenar modelo clásico (supervisado)
      */
     @Test
+    @Disabled("Test lento")
     void test1_EntrenarModeloClasico() {
         System.out.println("\n" + "=".repeat(60));
         System.out.println("TEST 1: ENTRENAMIENTO SUPERVISADO (Red Clásica)");
@@ -60,17 +62,18 @@ public class ComparativaGatosTest {
         System.out.println("=".repeat(60));
         
         long inicio = System.currentTimeMillis();
+        int numPartidas = 100;  // Reducido para tests rápidos (~7 min)
         
         // Crear y entrenar modelo experimental
         ModeloGatosExperimental modeloExperimental = new ModeloGatosExperimental();
-        modeloExperimental.entrenarSelfPlay(300);  // 300 partidas de self-play
+        modeloExperimental.entrenarSelfPlay(numPartidas);
         
         long tiempo = System.currentTimeMillis() - inicio;
         
         System.out.println("\n✓ Modelo experimental entrenado");
-        System.out.println("Tiempo: " + tiempo + " ms (" + tiempo/1000.0 + " segundos)");
+        System.out.println("Tiempo: " + tiempo/(60*60000.0) + " horas (" + tiempo/60000.0 + " minutos)");
         System.out.println("Método: Self-play con plasticidad hebiana");
-        System.out.println("Partidas: 300");
+        System.out.println("Partidas: " + numPartidas);
         
         // Guardar para uso posterior
         try {

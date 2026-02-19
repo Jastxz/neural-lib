@@ -33,7 +33,7 @@ class NeuronaTest {
     void testInicializacion() {
         assertEquals(1L, neuronaSensorial.getId());
         assertEquals(TipoNeurona.SENSORIAL, neuronaSensorial.getTipo());
-        assertEquals(0.5, neuronaSensorial.getValorAlmacenado(), 0.001);
+        // valorAlmacenado ya no existe - el conocimiento está en las conexiones
         assertEquals(PotencialMemoria.REPOSO.getValor(), neuronaSensorial.getPotencial(), 0.001);
         assertFalse(neuronaSensorial.estaActiva());
         assertEquals(1.0, neuronaSensorial.getRecursosAsignados(), 0.001);
@@ -191,15 +191,8 @@ class NeuronaTest {
         assertTrue(neuronaSensorial.getFactorSupervivencia() >= supervivenciaInicial);
     }
     
-    @Test
-    @DisplayName("Valor almacenado puede ser modificado")
-    void testModificacionValorAlmacenado() {
-        assertEquals(0.5, neuronaSensorial.getValorAlmacenado(), 0.001);
-        
-        neuronaSensorial.setValorAlmacenado(0.8);
-        
-        assertEquals(0.8, neuronaSensorial.getValorAlmacenado(), 0.001);
-    }
+    // Test eliminado: valorAlmacenado ya no existe
+    // El conocimiento está en las conexiones (pesos sinápticos), no en las neuronas
     
     @Test
     @DisplayName("Recursos asignados se mantienen en rango [0, 1]")

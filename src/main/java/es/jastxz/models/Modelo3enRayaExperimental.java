@@ -60,11 +60,12 @@ public class Modelo3enRayaExperimental {
         System.out.println("Partidas a jugar: " + numPartidas);
         System.out.println("Consolidación: Adaptativa (basada en tiempo de procesamiento)");
         
+        int progresoPartida = (int) Math.round(numPartidas*0.1);
         for (int partida = 0; partida < numPartidas; partida++) {
             jugarPartidaEntrenamiento();
             
             // Mostrar progreso cada 100 partidas (sin consolidar manualmente)
-            if ((partida + 1) % 100 == 0) {
+            if ((partida + 1) % progresoPartida == 0) {
                 mostrarProgreso(partida + 1, numPartidas);
             }
         }

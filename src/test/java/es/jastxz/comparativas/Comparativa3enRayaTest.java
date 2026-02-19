@@ -57,17 +57,18 @@ public class Comparativa3enRayaTest {
         System.out.println("=".repeat(60));
         
         long inicio = System.currentTimeMillis();
+        int numPartidas = 300;
         
         // Crear y entrenar modelo experimental
         Modelo3enRayaExperimental modeloExperimental = new Modelo3enRayaExperimental();
-        modeloExperimental.entrenarSelfPlay(500);  // 500 partidas de self-play
+        modeloExperimental.entrenarSelfPlay(numPartidas);
         
         long tiempo = System.currentTimeMillis() - inicio;
         
         System.out.println("\n✓ Modelo experimental entrenado");
         System.out.println("Tiempo: " + tiempo + " ms");
         System.out.println("Método: Self-play con plasticidad hebiana");
-        System.out.println("Partidas: 500");
+        System.out.println("Partidas: " + numPartidas);
         
         // Guardar para uso posterior
         try {

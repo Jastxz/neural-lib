@@ -141,9 +141,10 @@ public class GestorPredicciones implements Serializable {
         if (prediccionMotora != null) {
             for (int i = 0; i < capaMotora.size(); i++) {
                 Neurona neurona = capaMotora.get(i);
+                // Usar solo potencial normalizado (no hay valorAlmacenado)
                 double activacionReal = neurona.estaActiva() ? 
                     neurona.getPotencial() / PotencialMemoria.PICO.getValor() : 
-                    neurona.getValorAlmacenado();
+                    0.0;
                 
                 erroresPrediccion[i] = activacionReal - prediccionMotora[i];
             }
@@ -166,9 +167,10 @@ public class GestorPredicciones implements Serializable {
             
             for (int i = 0; i < Math.min(prediccion.length, capa.size()); i++) {
                 Neurona neurona = capa.get(i);
+                // Usar solo potencial normalizado (no hay valorAlmacenado)
                 double activacionReal = neurona.estaActiva() ? 
                     neurona.getPotencial() / PotencialMemoria.PICO.getValor() : 
-                    neurona.getValorAlmacenado();
+                    0.0;
                 
                 double error = activacionReal - prediccion[i];
                 prediccion[i] += error * tasaAprendizaje;

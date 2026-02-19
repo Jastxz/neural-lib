@@ -4,6 +4,9 @@ import es.jastxz.nn.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -76,24 +79,6 @@ class RedNeuralExperimentalFase3Test {
         }
         
         assertTrue(algunPesoCambio, "Al menos algunos pesos deben cambiar con el entrenamiento");
-    }
-    
-    @Test
-    @DisplayName("Valores almacenados cambian después del entrenamiento")
-    void testValoresAlmacenadosCambianConEntrenamiento() {
-        int[] topologia = {2, 2, 1};
-        RedNeuralExperimental red = new RedNeuralExperimental(topologia, 0.8);
-        
-        // Guardar valor almacenado inicial de neurona motora
-        double valorInicial = red.getCapaMotora().get(0).getValorAlmacenado();
-        
-        // Entrenar con target diferente
-        red.entrenar(new double[]{0.5, -0.3}, new double[]{0.9}, 50);
-        
-        // Verificar que el valor cambió
-        double valorFinal = red.getCapaMotora().get(0).getValorAlmacenado();
-        assertNotEquals(valorInicial, valorFinal, 0.001, 
-            "El valor almacenado debe cambiar con el entrenamiento");
     }
     
     @Test

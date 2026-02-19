@@ -40,8 +40,7 @@ import java.util.*;
  *    - Se consolidan durante "sueño" (Fase 7)
  * 
  * 3. MEMORIA DE LARGO PLAZO (conocimiento consolidado):
- *    - Valores almacenados en neuronas (valorAlmacenado)
- *    - Pesos sinápticos de conexiones
+ *    - Pesos sinápticos de conexiones (AQUÍ está el conocimiento)
  *    - Engramas consolidados
  *    - Persiste indefinidamente (hasta poda por desuso)
  * 
@@ -224,9 +223,12 @@ public class RedNeuralExperimental implements Serializable {
                     double peso;
                     if (random.nextDouble() < 0.2) {
                         // Conexión inhibitoria (peso negativo)
+                        // Rango: [-0.4, -0.1] para inhibición moderada
                         peso = -(random.nextDouble() * 0.3 + 0.1);  // [-0.4, -0.1]
                     } else {
                         // Conexión excitatoria (peso positivo)
+                        // Rango: [0.1, 0.4] para empezar con conexiones débiles
+                        // El aprendizaje las fortalecerá según sea necesario
                         peso = random.nextDouble() * 0.3 + 0.1;  // [0.1, 0.4]
                     }
                     
@@ -316,6 +318,13 @@ public class RedNeuralExperimental implements Serializable {
         // Establecer inputs en capa sensorial
         propagador.establecerInputs(capaSensorial, inputs, timestampGlobal);
         
+        // Activar engramas parcialmente activos ANTES de propagación
+        // Esto permite que los engramas faciliten neuronas que luego se activarán naturalmente
+        // Implementa el principio de Campillo (pg. 93): "el cerebro completa recuerdos parciales"
+        if (gestorEngramas.esDeteccionActiva()) {
+            gestorEngramas.activarEngramasParciales(timestampGlobal);
+        }
+        
         // Obtener todas las neuronas para propagación
         List<Neurona> todasNeuronas = obtenerTodasNeuronas();
         
@@ -340,8 +349,8 @@ public class RedNeuralExperimental implements Serializable {
         // Avanzar tiempo
         avanzarTiempo(1L);
         
-        // Extraer outputs
-        return propagador.getOutputs(capaMotora);
+        // Extraer outputs (pasando conexiones para calcular desde pesos)
+        return propagador.getOutputs(capaMotora, conexiones);
     }
     
     /**
@@ -694,6 +703,7 @@ public class RedNeuralExperimental implements Serializable {
      * (pg. 89 Campillo: "Olvido gradual pero parcial")
      * 
      * MEJORADO: Incluye optimización de engramas (clustering y fusión)
+     * AJUSTADO: Consolidación menos agresiva para mantener más engramas
      */
     public void consolidar() {
         if (estado != EstadoRed.CONSOLIDANDO) {
@@ -710,19 +720,21 @@ public class RedNeuralExperimental implements Serializable {
             // Calcular tiempo desde última activación
             long tiempoSinUso = timestampGlobal - engrama.getTimestampUltimaActivacion();
             
-            // Si el engrama ha sido usado recientemente, fortalecerlo
-            if (tiempoSinUso < 30L) {
+            // AJUSTADO: Ventana temporal más larga (100L en lugar de 30L)
+            // Esto permite que los engramas sobrevivan más tiempo sin uso
+            if (tiempoSinUso < 100L) {
                 // Engrama relevante: aumentar su relevancia
                 double nuevaRelevancia = Math.min(2.0, engrama.getRelevancia() * 1.1);
                 engrama.setRelevancia(nuevaRelevancia);
             } else {
-                // Engrama no usado: degradar
-                double factorDegradacion = 0.80;  // Pierde 20% de relevancia
+                // Engrama no usado: degradar más suavemente
+                double factorDegradacion = 0.90;  // Pierde solo 10% de relevancia (antes 20%)
                 double nuevaRelevancia = engrama.getRelevancia() * factorDegradacion;
                 engrama.setRelevancia(nuevaRelevancia);
                 
-                // Si la relevancia es muy baja, marcar para eliminación
-                if (nuevaRelevancia < 0.15) {
+                // AJUSTADO: Umbral de poda más bajo (0.05 en lugar de 0.15)
+                // Solo eliminar engramas realmente irrelevantes
+                if (nuevaRelevancia < 0.05) {
                     engramasAEliminar.add(id);
                 }
             }
@@ -855,8 +867,8 @@ public class RedNeuralExperimental implements Serializable {
         sb.append("Capa Motora (").append(capaMotora.size()).append(" neuronas):\n");
         for (int i = 0; i < capaMotora.size(); i++) {
             Neurona n = capaMotora.get(i);
-            sb.append(String.format("  [%d] %s (pot: %.2f, val: %.2f)\n", 
-                i, n.estaActiva() ? "●" : "○", n.getPotencial(), n.getValorAlmacenado()));
+            sb.append(String.format("  [%d] %s (pot: %.2f)\n", 
+                i, n.estaActiva() ? "●" : "○", n.getPotencial()));
         }
         
         return sb.toString();

@@ -34,7 +34,12 @@ public class EntrenadorHebiano implements Serializable {
      * Modula el aprendizaje basándose en el error de predicción
      * Implementa supervisión débil: solo se transmite el error (pg. 64 Eagleman)
      * 
-     * MEJORADO: Permite crear conexiones inhibitorias (pesos negativos) cuando es necesario
+     * REFACTORIZADO: Ajusta SOLO pesos de conexiones (conocimiento en sinapsis)
+     * NO ajusta valorAlmacenado de neuronas (conceptualmente incorrecto)
+     * 
+     * Principio biológico:
+     * - Neuronas: Procesadores (no almacenan conocimiento)
+     * - Sinapsis: Memoria (almacenan conocimiento en pesos)
      * 
      * @param capaMotora Lista de neuronas motoras
      * @param capasInterneuronas Capas intermedias
@@ -45,20 +50,10 @@ public class EntrenadorHebiano implements Serializable {
                                            List<List<Neurona>> capasInterneuronas,
                                            double[] errores,
                                            List<Conexion> todasConexiones) {
-        double tasaAprendizaje = 0.5;  // Tasa más agresiva para aprendizaje supervisado
+        double tasaAprendizaje = 0.3;  // Tasa moderada para aprendizaje supervisado
         
-        // Ajustar valores almacenados de neuronas motoras basándose en error
-        for (int i = 0; i < capaMotora.size(); i++) {
-            Neurona neurona = capaMotora.get(i);
-            double error = errores[i];
-            
-            // Ajustar valor almacenado proporcionalmente al error
-            double nuevoValor = neurona.getValorAlmacenado() + error * tasaAprendizaje;
-            neurona.setValorAlmacenado(Math.max(-1.0, Math.min(1.0, nuevoValor)));
-        }
-        
-        // MEJORADO: Iterar sobre conexiones (más eficiente O(n) vs O(n²))
-        // Ajustar pesos de conexiones que llegan a neuronas motoras
+        // REFACTORIZADO: Ajustar SOLO pesos de conexiones que llegan a neuronas motoras
+        // El conocimiento está en las sinapsis, no en las neuronas
         for (Conexion conexion : todasConexiones) {
             List<Neurona> postsinapticas = conexion.getPostsinapticas();
             
@@ -68,9 +63,11 @@ public class EntrenadorHebiano implements Serializable {
                     Neurona pre = conexion.getPresinaptica();
                     double error = errores[i];
                     
+                    // Solo ajustar si la neurona presináptica está activa
+                    // (plasticidad hebiana: "neuronas que se activan juntas, se conectan")
                     if (pre.estaActiva()) {
-                        // Regla delta mejorada: permite pesos negativos
-                        double ajustePeso = error * tasaAprendizaje * 0.8;
+                        // Regla delta: ajustar peso basándose en error
+                        double ajustePeso = error * tasaAprendizaje;
                         double nuevoPeso = conexion.getPeso() + ajustePeso;
                         
                         // Permitir pesos negativos para inhibición
@@ -88,7 +85,9 @@ public class EntrenadorHebiano implements Serializable {
     /**
      * Propaga señal de error hacia capas anteriores
      * Permite que capas intermedias ajusten su conocimiento
-     * MEJORADO: Permite crear conexiones inhibitorias
+     * 
+     * REFACTORIZADO: Ajusta SOLO pesos de conexiones (conocimiento en sinapsis)
+     * NO ajusta valorAlmacenado de neuronas (conceptualmente incorrecto)
      * 
      * @param capaMotora Capa de salida
      * @param capasInterneuronas Capas intermedias
@@ -111,6 +110,12 @@ public class EntrenadorHebiano implements Serializable {
         
         for (int i = 0; i < ultimaInter.size(); i++) {
             Neurona neuronaInter = ultimaInter.get(i);
+            
+            // Solo ajustar si la neurona intermedia está activa
+            if (!neuronaInter.estaActiva()) {
+                continue;
+            }
+            
             double errorAcumulado = 0.0;
             int contadorConexiones = 0;
             
@@ -129,22 +134,18 @@ public class EntrenadorHebiano implements Serializable {
                 }
             }
             
-            // Ajustar valor almacenado y pesos si hay conexiones
+            // Ajustar pesos si hay conexiones
             if (contadorConexiones > 0) {
                 double errorPromedio = errorAcumulado / contadorConexiones;
                 
-                // Ajustar valor almacenado
-                double nuevoValor = neuronaInter.getValorAlmacenado() + errorPromedio * tasaAprendizaje * 0.5;
-                neuronaInter.setValorAlmacenado(Math.max(-1.0, Math.min(1.0, nuevoValor)));
-                
-                // MEJORADO: Ajustar pesos de conexiones hacia capa motora (permitir negativos)
+                // REFACTORIZADO: Ajustar SOLO pesos de conexiones hacia capa motora
                 for (Conexion conexion : todasConexiones) {
-                    if (conexion.getPresinaptica() == neuronaInter && neuronaInter.estaActiva()) {
+                    if (conexion.getPresinaptica() == neuronaInter) {
                         List<Neurona> postsinapticas = conexion.getPostsinapticas();
                         
                         for (int j = 0; j < capaMotora.size(); j++) {
                             if (postsinapticas.contains(capaMotora.get(j))) {
-                                double ajustePeso = erroresMotora[j] * tasaAprendizaje * 0.6;
+                                double ajustePeso = erroresMotora[j] * tasaAprendizaje * 0.5;
                                 double nuevoPeso = conexion.getPeso() + ajustePeso;
                                 // Permitir pesos negativos para inhibición
                                 conexion.setPeso(Math.max(-1.0, Math.min(1.0, nuevoPeso)));
