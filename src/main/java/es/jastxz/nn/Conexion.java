@@ -33,6 +33,13 @@ public class Conexion implements Serializable {
     private double tasaRefuerzo;  // Velocidad de cambio del peso
     private static final double TASA_REFUERZO_DEFAULT = 0.02;  // Tasa de aprendizaje
     
+    // Congelación de conexiones estables (Mejora 2)
+    private boolean congelada;  // Si true, no se ajusta más el peso
+    private double pesoAnterior;  // Para detectar si dejó de cambiar
+    private int iteracionesSinCambio;  // Contador de iteraciones sin cambio significativo
+    private static final int UMBRAL_CONGELACION = 10;  // Iteraciones sin cambio para congelar
+    private static final double UMBRAL_CAMBIO_MINIMO = 0.001;  // Cambio mínimo para considerar que cambió
+    
     /**
      * Constructor simple (1 pre → 1 post)
      */
@@ -51,6 +58,11 @@ public class Conexion implements Serializable {
         this.timestampUltimaActivacion = 0L;
         this.vecesActivadaJuntas = 0;
         this.tasaRefuerzo = TASA_REFUERZO_DEFAULT;
+        
+        // Inicializar congelación
+        this.congelada = false;
+        this.pesoAnterior = pesoInicial;
+        this.iteracionesSinCambio = 0;
     }
     
     /**
@@ -70,6 +82,11 @@ public class Conexion implements Serializable {
         this.timestampUltimaActivacion = 0L;
         this.vecesActivadaJuntas = 0;
         this.tasaRefuerzo = TASA_REFUERZO_DEFAULT;
+        
+        // Inicializar congelación
+        this.congelada = false;
+        this.pesoAnterior = pesoInicial;
+        this.iteracionesSinCambio = 0;
     }
     
     /**
@@ -105,6 +122,56 @@ public class Conexion implements Serializable {
      */
     public boolean debeSerPodada() {
         return Math.abs(peso) <= 0.05 || recursosAsignados <= 0.1;
+    }
+    
+    /**
+     * MEJORA 2: Actualiza el estado de congelación de la conexión
+     * Si el peso no ha cambiado significativamente durante varias iteraciones,
+     * congela la conexión para no gastar recursos en cálculos innecesarios.
+     * 
+     * @return true si la conexión se congeló en esta llamada
+     */
+    public boolean actualizarCongelacion() {
+        if (congelada) {
+            return false;  // Ya está congelada
+        }
+        
+        // Verificar si el peso cambió significativamente
+        double cambio = Math.abs(peso - pesoAnterior);
+        
+        if (cambio < UMBRAL_CAMBIO_MINIMO) {
+            iteracionesSinCambio++;
+            
+            // Si lleva muchas iteraciones sin cambiar, congelar
+            if (iteracionesSinCambio >= UMBRAL_CONGELACION) {
+                congelada = true;
+                return true;
+            }
+        } else {
+            // Hubo cambio significativo, resetear contador
+            iteracionesSinCambio = 0;
+        }
+        
+        // Actualizar peso anterior para próxima comparación
+        pesoAnterior = peso;
+        return false;
+    }
+    
+    /**
+     * Descongela la conexión para permitir ajustes nuevamente
+     * Útil cuando cambia el contexto de entrenamiento
+     */
+    public void descongelar() {
+        this.congelada = false;
+        this.iteracionesSinCambio = 0;
+        this.pesoAnterior = peso;
+    }
+    
+    /**
+     * Verifica si la conexión está congelada
+     */
+    public boolean estaCongelada() {
+        return congelada;
     }
     
     // Getters y setters

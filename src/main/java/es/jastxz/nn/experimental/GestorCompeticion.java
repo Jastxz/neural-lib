@@ -43,20 +43,20 @@ public class GestorCompeticion implements Serializable {
         }
         
         // AJUSTADO: Ventana temporal más larga para dar tiempo a que se usen las conexiones
-        // Con avance de 10L por iteración, 20L es solo 2 iteraciones
-        // Aumentamos a 200L para dar ~20 iteraciones de margen
-        long ventanaTemporal = 200L;
+        // Con avance de 10L por iteración, necesitamos ventana generosa
+        // 500L = ~50 iteraciones de margen antes de penalizar
+        long ventanaTemporal = 500L;
         
-        // Competición entre neuronas
-        competirNeuronas(capaSensorial, ventanaTemporal, timestampActual, 0.03, 0.02);
+        // Competición entre neuronas (más conservadora)
+        competirNeuronas(capaSensorial, ventanaTemporal, timestampActual, 0.02, 0.01);
         
         for (List<Neurona> capa : capasInterneuronas) {
-            competirNeuronas(capa, ventanaTemporal, timestampActual, 0.03, 0.025);
+            competirNeuronas(capa, ventanaTemporal, timestampActual, 0.02, 0.015);
         }
         
-        competirNeuronas(capaMotora, ventanaTemporal, timestampActual, 0.03, 0.02);
+        competirNeuronas(capaMotora, ventanaTemporal, timestampActual, 0.02, 0.01);
         
-        // Competición entre conexiones
+        // Competición entre conexiones (más conservadora)
         competirConexiones(conexiones, ventanaTemporal, timestampActual);
         
         ultimaCompeticion = timestampActual;
@@ -83,12 +83,14 @@ public class GestorCompeticion implements Serializable {
             long ultimaActivacion = conexion.getTimestampUltimaActivacion();
             
             if (timestampActual - ultimaActivacion < ventanaTemporal) {
+                // Ganancia más suave
                 conexion.setRecursosAsignados(
-                    Math.min(1.0, conexion.getRecursosAsignados() + 0.025)
+                    Math.min(1.0, conexion.getRecursosAsignados() + 0.015)
                 );
             } else {
+                // Pérdida más suave para dar más oportunidades
                 conexion.setRecursosAsignados(
-                    Math.max(0.0, conexion.getRecursosAsignados() - 0.03)
+                    Math.max(0.0, conexion.getRecursosAsignados() - 0.015)
                 );
             }
         }
@@ -97,10 +99,28 @@ public class GestorCompeticion implements Serializable {
     public int podarElementos(List<Conexion> conexiones) {
         List<Conexion> conexionesAPodar = new ArrayList<>();
         
+        // Calcular cuántas conexiones podemos podar como máximo
+        // Nunca podar más del 50% de las conexiones en una sola poda
+        // Y siempre mantener al menos 20 conexiones mínimas
+        int maxPodar = Math.max(0, Math.min(
+            conexiones.size() / 2,  // Máximo 50%
+            conexiones.size() - 20  // Mantener al menos 20
+        ));
+        
         for (Conexion conexion : conexiones) {
             if (conexion.debeSerPodada()) {
                 conexionesAPodar.add(conexion);
             }
+        }
+        
+        // Si vamos a podar demasiadas, solo podar las peores
+        if (conexionesAPodar.size() > maxPodar) {
+            // Ordenar por recursos (las de menos recursos primero)
+            conexionesAPodar.sort((c1, c2) -> 
+                Double.compare(c1.getRecursosAsignados(), c2.getRecursosAsignados())
+            );
+            // Solo podar las maxPodar peores
+            conexionesAPodar = conexionesAPodar.subList(0, maxPodar);
         }
         
         // Eliminar conexiones podadas

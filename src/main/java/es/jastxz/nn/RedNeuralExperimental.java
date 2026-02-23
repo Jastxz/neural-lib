@@ -178,7 +178,7 @@ public class RedNeuralExperimental implements Serializable {
     
     /**
      * Genera conexiones entre capas según densidad configurada
-     * Incluye conexiones feed-forward y feedback
+     * Incluye conexiones feed-forward, feedback y laterales
      */
     private void generarConexiones() {
         // Conexiones feed-forward
@@ -197,6 +197,17 @@ public class RedNeuralExperimental implements Serializable {
                 capaMotora,
                 true
             );
+            
+            // NUEVO: Conexiones laterales con densidades diferenciadas por tipo de capa
+            // Basado en proporciones biológicas de neuronas inhibitorias:
+            // - Corteza sensorial: ~17% neuronas GABAérgicas (inhibitorias)
+            // - Corteza asociativa: ~37% neuronas GABAérgicas
+            // - Corteza motora: ~17% neuronas GABAérgicas
+            
+            // Conexiones laterales en capas intermedias (37% densidad)
+            for (List<Neurona> capa : capasInterneuronas) {
+                generarConexionesLaterales(capa, 0.37);
+            }
         } else {
             // Si no hay capas intermedias, conectar directamente sensorial → motora
             generarConexionesEntrCapas(capaSensorial, capaMotora, true);
@@ -273,6 +284,62 @@ public class RedNeuralExperimental implements Serializable {
                 capasInterneuronas.get(i - 1),
                 false
             );
+        }
+    }
+    
+    /**
+     * Genera conexiones laterales dentro de una capa (inhibición lateral)
+     * Implementa competición entre neuronas de la misma capa
+     * 
+     * Principio biológico:
+     * - Inhibición lateral: Neuronas activas inhiben a vecinas
+     * - Permite especialización: Solo algunas neuronas se activan
+     * - "Winner-takes-all" o "Winner-takes-most"
+     * - Cada conexión es UNIDIRECCIONAL (pre → post)
+     * 
+     * Proporciones biológicas de neuronas inhibitorias:
+     * - Corteza sensorial: ~17% neuronas GABAérgicas
+     * - Corteza asociativa (intermedia): ~37% neuronas GABAérgicas
+     * - Corteza motora: ~17% neuronas GABAérgicas
+     * 
+     * @param capa Lista de neuronas de la misma capa
+     * @param proporcionInhibitoria Proporción de conexiones inhibitorias (0.17 o 0.37)
+     */
+    private void generarConexionesLaterales(List<Neurona> capa, double proporcionInhibitoria) {
+        // La densidad de conexiones laterales se basa en la proporción de neuronas inhibitorias
+        // Cada neurona inhibitoria se conecta con varias neuronas vecinas
+        double densidadLateral = proporcionInhibitoria;
+        
+        for (int i = 0; i < capa.size(); i++) {
+            Neurona pre = capa.get(i);
+            
+            for (int j = 0; j < capa.size(); j++) {
+                // Saltar autoconexiones (neurona consigo misma)
+                if (i == j) continue;
+                
+                Neurona post = capa.get(j);
+                
+                // Decidir si crear conexión lateral según densidad
+                if (random.nextDouble() < densidadLateral) {
+                    // 90% de conexiones laterales son INHIBITORIAS
+                    // Esto implementa competición entre neuronas
+                    double peso;
+                    if (random.nextDouble() < 0.9) {
+                        // Conexión inhibitoria (peso negativo)
+                        // Fuerte para competición efectiva
+                        peso = -(random.nextDouble() * 0.4 + 0.3);  // [-0.7, -0.3]
+                    } else {
+                        // Conexión excitatoria (cooperación local)
+                        // Más débil que inhibición
+                        peso = random.nextDouble() * 0.2 + 0.1;  // [0.1, 0.3]
+                    }
+                    
+                    // Crear conexión UNIDIRECCIONAL (pre → post)
+                    // Cada conexión es independiente y puede ser podada por separado
+                    Conexion conexion = new Conexion(pre, post, peso, TipoConexion.QUIMICA);
+                    conexiones.add(conexion);
+                }
+            }
         }
     }
     
@@ -469,6 +536,7 @@ public class RedNeuralExperimental implements Serializable {
      * (pg. 46-47 Eagleman)
      * 
      * MEJORADO: Consolidación adaptativa basada en tiempo de procesamiento
+     * MEJORADO: Supervisión fuerte inicial para resolver problema de coactivación
      * 
      * @param inputs Array de valores de entrada
      * @param targets Array de valores objetivo (supervisión débil)
@@ -488,6 +556,25 @@ public class RedNeuralExperimental implements Serializable {
             
             // Procesar inputs
             double[] outputs = procesar(inputs);
+            
+            // MEJORA: Supervisión fuerte - Forzar activación de neuronas motoras basándose en target
+            // Esto resuelve el problema de "huevo y gallina" con backpropagation coactivo
+            // La neurona motora necesita activarse para que se ajusten los pesos hacia ella
+            for (int j = 0; j < capaMotora.size(); j++) {
+                Neurona neuronaMotora = capaMotora.get(j);
+                double target = targets[j];
+                
+                // Si el target es alto (>0.3) y la neurona no está activa, forzar activación
+                // Umbral más bajo (0.3) para permitir aprendizaje incluso con targets moderados
+                if (target > 0.3 && !neuronaMotora.estaActiva()) {
+                    neuronaMotora.activar(timestampGlobal);
+                }
+                // Si el target es bajo (<0.3) y la neurona está activa, desactivarla
+                // Esto enseña a la red cuándo NO activarse
+                else if (target < 0.3 && neuronaMotora.estaActiva()) {
+                    neuronaMotora.resetear();
+                }
+            }
             
             // Calcular error
             double[] errores = new double[targets.length];

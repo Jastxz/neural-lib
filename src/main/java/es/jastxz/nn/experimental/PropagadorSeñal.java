@@ -44,6 +44,9 @@ public class PropagadorSeñal implements Serializable {
      * Propagación feed-forward: de sensorial hacia motora
      * REFACTORIZADO: Itera sobre conexiones en lugar de neuronas
      * 
+     * MEJORADO: Aplica plasticidad hebiana DURANTE la propagación
+     * En el cerebro, las sinapsis se fortalecen mientras se usa la conexión
+     * 
      * @param conexiones Lista de todas las conexiones de la red
      * @param todasNeuronas Lista de todas las neuronas (para resetear potencial acumulado)
      * @param timestamp Timestamp actual
@@ -51,7 +54,10 @@ public class PropagadorSeñal implements Serializable {
     public void propagarHaciaAdelante(List<Conexion> conexiones, 
                                       List<Neurona> todasNeuronas,
                                       long timestamp) {
+        long ventanaTemporal = 100L; // Ventana temporal para STDP
+        
         // Fase 1: Propagar señales a través de conexiones
+        // Y aplicar plasticidad hebiana simultáneamente
         for (Conexion conexion : conexiones) {
             Neurona pre = conexion.getPresinaptica();
             
@@ -62,6 +68,34 @@ public class PropagadorSeñal implements Serializable {
                 // Enviar señal a todas las neuronas postsinápticas
                 for (Neurona post : conexion.getPostsinapticas()) {
                     post.recibirSeñal(señal);
+                    
+                    // NUEVO: Aplicar plasticidad hebiana DURANTE la propagación
+                    // Si la neurona post también está activa, fortalecer conexión
+                    // Esto es más biológicamente correcto: "neuronas que disparan juntas, se conectan"
+                    if (post.estaActiva()) {
+                        // Reforzar conexión (Long-Term Potentiation)
+                        double tasaRefuerzo = 0.02;
+                        double nuevoPeso = conexion.getPeso() + tasaRefuerzo;
+                        conexion.setPeso(Math.max(-1.0, Math.min(1.0, nuevoPeso)));
+                        
+                        // Reforzar recursos por uso
+                        conexion.setRecursosAsignados(
+                            Math.min(1.0, conexion.getRecursosAsignados() + 0.005)
+                        );
+                    }
+                }
+            } else {
+                // Si la conexión no se usa, debilitar por desuso
+                long tiempoSinUso = timestamp - conexion.getTimestampUltimaActivacion();
+                if (tiempoSinUso > ventanaTemporal) {
+                    double tasaDebilitamiento = 0.01;  // Más suave que refuerzo
+                    double nuevoPeso = conexion.getPeso() * (1.0 - tasaDebilitamiento);
+                    conexion.setPeso(nuevoPeso);
+                    
+                    // Penalizar recursos por falta de uso
+                    conexion.setRecursosAsignados(
+                        Math.max(0.0, conexion.getRecursosAsignados() - 0.01)
+                    );
                 }
             }
         }
