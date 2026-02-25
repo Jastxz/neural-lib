@@ -390,6 +390,13 @@ public class SecuenciasTest {
         
         System.out.println("\nEjemplos de predicciones:");
         
+        // IMPORTANTE: NO resetear entre procesamientos
+        // Las neuronas deben mantener su estado (memoria de corto plazo)
+        // Solo resetear al inicio de la evaluación
+        if (esExperimental) {
+            ((RedNeuralExperimental) red).resetear();
+        }
+        
         for (int i = 0; i < Math.min(5, datosPrueba.size()); i++) {
             double[] ejemplo = datosPrueba.get(i);
             double[] input = Arrays.copyOfRange(ejemplo, 0, VENTANA);
@@ -398,7 +405,7 @@ public class SecuenciasTest {
             double predicho;
             if (esExperimental) {
                 RedNeuralExperimental redExp = (RedNeuralExperimental) red;
-                redExp.resetear();
+                // NO resetear aquí - mantener estado entre procesamientos
                 double[] output = redExp.procesar(input);
                 predicho = output[0];
                 
@@ -441,7 +448,7 @@ public class SecuenciasTest {
             double predicho;
             if (esExperimental) {
                 RedNeuralExperimental redExp = (RedNeuralExperimental) red;
-                redExp.resetear();
+                // NO resetear - mantener estado
                 double[] output = redExp.procesar(input);
                 predicho = output[0];
             } else {

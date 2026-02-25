@@ -106,6 +106,15 @@ public class RedNeuralExperimental implements Serializable {
             throw new IllegalArgumentException("La densidad debe estar entre 0.0 y 1.0");
         }
         
+        // Verificar tamaño mínimo de capas intermedias
+        for (int i = 1; i < topologia.length - 1; i++) {
+            int minimo = calcularTamañoMinimoCapaIntermedia(topologia[0], topologia[topologia.length - 1]);
+            if (topologia[i] < minimo) {
+                System.out.println("ADVERTENCIA: Capa intermedia " + i + " tiene " + topologia[i] + 
+                    " neuronas. Se recomienda al menos " + minimo + " para formar grupos especializados.");
+            }
+        }
+        
         this.topologia = topologia.clone();
         this.densidadConexiones = densidadConexiones;
         this.random = new Random();
@@ -135,29 +144,69 @@ public class RedNeuralExperimental implements Serializable {
     }
     
     /**
+     * Calcula el tamaño mínimo recomendado para una capa intermedia
+     * 
+     * Criterios:
+     * 1. Suficientes neuronas para formar múltiples grupos especializados
+     * 2. Con umbrales variables (30-50%), necesitamos más neuronas
+     * 3. Regla empírica: al menos 2-3x el tamaño de la capa de entrada
+     * 4. Mínimo absoluto: 10 neuronas para permitir especialización
+     * 
+     * @param tamañoInput Tamaño de la capa de entrada
+     * @param tamañoOutput Tamaño de la capa de salida
+     * @return Tamaño mínimo recomendado
+     */
+    private int calcularTamañoMinimoCapaIntermedia(int tamañoInput, int tamañoOutput) {
+        // Regla empírica: 2-3x el tamaño de entrada
+        int basadoEnInput = tamañoInput * 2;
+        
+        // Considerar también el output
+        int basadoEnOutput = tamañoOutput * 5;  // Más neuronas si hay múltiples outputs
+        
+        // Tomar el mayor
+        int calculado = Math.max(basadoEnInput, basadoEnOutput);
+        
+        // Mínimo absoluto: 10 neuronas
+        return Math.max(10, calculado);
+    }
+    
+    /**
      * Inicializa las capas de neuronas según la topología
+     * 
+     * MEJORADO: Umbrales de activación variables por tipo de capa
+     * - Capas sensorial/motora: 15-30% (más sensibles)
+     * - Capas intermedias: 30-50% (más selectivas, favorece especialización)
+     * 
+     * Esto permite que diferentes neuronas se especialicen naturalmente
+     * y facilita la formación de grupos funcionales (engramas)
      */
     private void inicializarCapas() {
         // Capa sensorial (primera capa)
+        // Umbrales bajos (15-30%) para ser sensibles a inputs
         for (int i = 0; i < topologia[0]; i++) {
+            double umbral = 0.15 + random.nextDouble() * 0.15;  // [0.15, 0.30]
             Neurona neurona = new Neurona(
                 contadorNeuronas++,
                 TipoNeurona.SENSORIAL,
                 randomValue(),
-                PotencialMemoria.REPOSO  // Potencial de reposo
+                PotencialMemoria.REPOSO,
+                umbral
             );
             capaSensorial.add(neurona);
         }
         
         // Capas de interneuronas (capas intermedias)
+        // Umbrales altos (30-50%) para ser selectivas y especializarse
         for (int capa = 1; capa < topologia.length - 1; capa++) {
             List<Neurona> capaInter = new ArrayList<>();
             for (int i = 0; i < topologia[capa]; i++) {
+                double umbral = 0.30 + random.nextDouble() * 0.20;  // [0.30, 0.50]
                 Neurona neurona = new Neurona(
                     contadorNeuronas++,
                     TipoNeurona.INTER,
                     randomValue(),
-                    PotencialMemoria.REPOSO
+                    PotencialMemoria.REPOSO,
+                    umbral
                 );
                 capaInter.add(neurona);
             }
@@ -165,12 +214,15 @@ public class RedNeuralExperimental implements Serializable {
         }
         
         // Capa motora (última capa)
+        // Umbrales bajos (15-30%) para poder generar outputs
         for (int i = 0; i < topologia[topologia.length - 1]; i++) {
+            double umbral = 0.15 + random.nextDouble() * 0.15;  // [0.15, 0.30]
             Neurona neurona = new Neurona(
                 contadorNeuronas++,
                 TipoNeurona.MOTORA,
                 randomValue(),
-                PotencialMemoria.REPOSO
+                PotencialMemoria.REPOSO,
+                umbral
             );
             capaMotora.add(neurona);
         }

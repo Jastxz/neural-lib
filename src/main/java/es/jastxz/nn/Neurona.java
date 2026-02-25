@@ -20,6 +20,10 @@ public class Neurona implements Serializable {
     private PotencialMemoria potencial;  // Potencial de membrana actual
     private boolean activa;
     
+    // Umbral de activación personalizado por neurona
+    // Permite diversidad y especialización natural
+    private final double umbralActivacion;
+    
     // Gestión de recursos (competición biológica)
     private double recursosAsignados;   // 0.0 a 1.0
     private double factorSupervivencia; // Basado en uso reciente
@@ -45,9 +49,23 @@ public class Neurona implements Serializable {
      * @param potencialInicial Potencial de membrana inicial
      */
     public Neurona(long id, TipoNeurona tipo, double valorAlmacenado, PotencialMemoria potencialInicial) {
+        this(id, tipo, valorAlmacenado, potencialInicial, 0.1363); // Umbral por defecto
+    }
+    
+    /**
+     * Constructor de Neurona con umbral personalizado
+     * 
+     * @param id Identificador único
+     * @param tipo Tipo de neurona (SENSORIAL, INTER, MOTORA)
+     * @param valorAlmacenado DEPRECATED - Se ignora (mantener por compatibilidad)
+     * @param potencialInicial Potencial de membrana inicial
+     * @param umbralActivacion Umbral personalizado de activación (0.0 a 1.0)
+     */
+    public Neurona(long id, TipoNeurona tipo, double valorAlmacenado, PotencialMemoria potencialInicial, double umbralActivacion) {
         this.id = id;
         this.tipo = tipo;
         this.potencial = potencialInicial;
+        this.umbralActivacion = umbralActivacion;
         
         // Si se inicializa con potencial de pico, marcar como activa
         this.activa = (potencialInicial == PotencialMemoria.PICO);
@@ -128,13 +146,9 @@ public class Neurona implements Serializable {
             return false;
         }
         
-        // Umbral normalizado (diferencia entre umbral y reposo en escala normalizada)
-        // UMBRAL = -55mV, REPOSO = -70mV, PICO = 40mV
-        // Rango total: 40 - (-70) = 110mV
-        // Diferencia umbral-reposo: -55 - (-70) = 15mV
-        // Umbral normalizado: 15/110 ≈ 0.1363 (aproximadamente 13.63% del rango)
-        double umbralNormalizado = 15.0 / 110.0; // 0.1363 - valor biológicamente correcto
-        double umbralAjustado = umbralNormalizado * (1.0 - facilitacionTemporal);
+        // Usar el umbral personalizado de esta neurona
+        // Ajustado por facilitación temporal (engramas)
+        double umbralAjustado = umbralActivacion * (1.0 - facilitacionTemporal);
         
         // Activación todo-o-nada
         if (potencialAcumulado >= umbralAjustado) {
@@ -229,6 +243,7 @@ public class Neurona implements Serializable {
     public long getId() { return id; }
     public TipoNeurona getTipo() { return tipo; }
     public double getPotencial() { return potencial.getValor(); }
+    public double getUmbralActivacion() { return umbralActivacion; }
     public void setPotencial(PotencialMemoria potencial) { this.potencial = potencial; }
     public boolean estaActiva() { return activa; }
     

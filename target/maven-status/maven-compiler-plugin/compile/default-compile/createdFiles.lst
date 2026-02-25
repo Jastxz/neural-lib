@@ -11,6 +11,7 @@ es/jastxz/nn/Neurona.class
 es/jastxz/models/Modelo3enRaya.class
 es/jastxz/nn/Activation.class
 es/jastxz/models/ModeloGatosExperimental$ParEntrenamiento.class
+es/jastxz/nn/experimental/GestorEngramas$ParFusion.class
 es/jastxz/nn/Conexion.class
 es/jastxz/models/Modelo3enRayaExperimental$EstadoJuego.class
 es/jastxz/nn/enums/PotencialMemoria.class
@@ -24,6 +25,7 @@ es/jastxz/models/ModeloDamasExperimental$EstadoJuego.class
 es/jastxz/util/TrainingPair.class
 es/jastxz/nn/RedNeuralExperimental.class
 es/jastxz/util/ModelManager.class
+es/jastxz/nn/experimental/GestorEngramas$EstadisticasEngramas.class
 es/jastxz/nn/experimental/PropagadorSeñal.class
 es/jastxz/nn/enums/TipoNeurona.class
 es/jastxz/models/Modelo3enRayaExperimental$ParEntrenamiento.class
@@ -38,3 +40,4 @@ es/jastxz/nn/Engrama.class
 es/jastxz/nn/enums/TipoConexion.class
 es/jastxz/util/NeuralNetworkTrainer.class
 es/jastxz/nn/experimental/GestorCompeticion.class
+es/jastxz/nn/experimental/GestorConsolidacionAdaptativa.class

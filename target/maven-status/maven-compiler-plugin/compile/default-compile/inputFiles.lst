@@ -2,6 +2,7 @@
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/Activation.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/NeuralNetwork.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/util/DataContainer.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/experimental/GestorConsolidacionAdaptativa.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/experimental/PropagadorSeñal.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/enums/PotencialMemoria.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/experimental/EntrenadorHebiano.java

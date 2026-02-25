@@ -2,6 +2,10 @@
 
 Esta librería proporciona implementaciones de **Redes Neuronales** para jugar y predecir movimientos en varios juegos de mesa clásicos: **3 en Raya (Tic-Tac-Toe)**, **Gatos y Ratón (Cats & Mouse)** y **Damas**.
 
+El proyecto incluye dos implementaciones:
+- **Red Clásica**: Backpropagation tradicional (optimización matemática)
+- **Red Experimental**: Plasticidad hebiana biológicamente inspirada
+
 ## Funcionalidades Principales
 
 - **Entrenamiento de Modelos**: Generación de datos de entrenamiento utilizando algoritmos Minimax/Negamax y entrenamiento de redes asociadas.
@@ -46,3 +50,30 @@ System.out.println("Movimiento: " + movimiento.getPos().getFila() + ", " + movim
 
 - Java 21+
 - Maven
+
+---
+
+## 📚 Documentación del Proyecto
+
+### Documentación Principal
+- **[HISTORIAL_MEJORAS_RED_EXPERIMENTAL.md](HISTORIAL_MEJORAS_RED_EXPERIMENTAL.md)** - Historial completo de todas las mejoras implementadas en la red experimental
+- **[HISTORIAL_REFACTORIZACIONES.md](HISTORIAL_REFACTORIZACIONES.md)** - Todas las refactorizaciones importantes del proyecto
+- **[MEJORAS_INHIBICION_LATERAL_Y_UMBRALES.md](MEJORAS_INHIBICION_LATERAL_Y_UMBRALES.md)** - Mejoras más recientes (inhibición lateral y umbrales variables)
+
+### Comparativas
+- **[RESUMEN_COMPARATIVA.md](RESUMEN_COMPARATIVA.md)** - Resumen ejecutivo de todas las comparativas
+- **[COMPARATIVA_3ENRAYA.md](COMPARATIVA_3ENRAYA.md)** - Comparativa detallada: 3 en Raya
+- **[COMPARATIVA_GATOS.md](COMPARATIVA_GATOS.md)** - Comparativa detallada: Gatos
+- **[COMPARATIVA_DAMAS.md](COMPARATIVA_DAMAS.md)** - Comparativa detallada: Damas
+- **[COMPARATIVA_SUPERVISADO.md](COMPARATIVA_SUPERVISADO.md)** - Backpropagation vs Plasticidad Hebiana
+
+### Recursos Adicionales
+- **[EJEMPLOS_USO.md](EJEMPLOS_USO.md)** - Ejemplos de uso de la librería
+- **[TAREAS_RECOMENDADAS.md](TAREAS_RECOMENDADAS.md)** - Tareas pendientes y mejoras sugeridas
+- **[Apuntes_Neurologicos.md](Apuntes_Neurologicos.md)** - Fundamentos neurológicos del proyecto
+- **[EXPLICACION_STACKOVERFLOW.md](EXPLICACION_STACKOVERFLOW.md)** - Explicación del problema de StackOverflow y su solución
+
+### Estado Actual
+- **Tests pasando:** 126/126 ✅
+- **Rendimiento:** Red experimental 48% mejor que clásica
+- **Última actualización:** 25 de febrero de 2026
