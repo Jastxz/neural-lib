@@ -3,6 +3,7 @@ package es.jastxz.nn.experimental;
 import es.jastxz.nn.Conexion;
 import es.jastxz.nn.Neurona;
 import es.jastxz.nn.enums.PotencialMemoria;
+import es.jastxz.nn.enums.TipoNeurona;
 
 import java.util.List;
 import java.io.Serializable;
@@ -23,18 +24,20 @@ public class PropagadorSeñal implements Serializable {
      * REFACTORIZADO: Activa neuronas sensoriales basándose en input
      * NO usa valorAlmacenado (conceptualmente incorrecto)
      * 
-     * Las neuronas sensoriales se activan si el input supera un umbral mínimo
+     * MEJORADO: Usa umbrales personalizados de cada neurona para selectividad
+     * Las neuronas sensoriales se activan si el input supera SU umbral específico
      */
     public void establecerInputs(List<Neurona> capaSensorial, double[] inputs, long timestamp) {
         for (int i = 0; i < inputs.length; i++) {
             Neurona neurona = capaSensorial.get(i);
             
-            // Activar neurona si el input es significativo (>0.05)
-            // Umbral bajo para permitir que inputs pequeños también activen neuronas
-            if (Math.abs(inputs[i]) > 0.05) {
+            // MEJORA: Usar umbral personalizado de la neurona
+            // Esto permite selectividad: solo neuronas relevantes se activan
+            // Cada neurona tiene su propio umbral (típicamente 0.17-0.48)
+            if (Math.abs(inputs[i]) > neurona.getUmbralActivacion()) {
                 neurona.activar(timestamp);
             } else {
-                // Si el input es muy bajo, resetear la neurona
+                // Si el input no supera el umbral, resetear la neurona
                 neurona.resetear();
             }
         }
@@ -42,13 +45,16 @@ public class PropagadorSeñal implements Serializable {
     
     /**
      * Propagación feed-forward: de sensorial hacia motora
-     * REFACTORIZADO: Itera sobre conexiones en lugar de neuronas
+     * REFACTORIZADO: Propagación en dos pasadas para respetar orden de capas
      * 
-     * MEJORADO: Aplica plasticidad hebiana DURANTE la propagación
-     * En el cerebro, las sinapsis se fortalecen mientras se usa la conexión
+     * CORRECCIÓN CRÍTICA: Las neuronas intermedias deben activarse ANTES de
+     * propagar hacia las neuronas motoras. Solución: doble pasada.
+     * 
+     * Pasada 1: Propagar sensorial → intermedia, evaluar intermedias
+     * Pasada 2: Propagar intermedia → motora, evaluar motoras
      * 
      * @param conexiones Lista de todas las conexiones de la red
-     * @param todasNeuronas Lista de todas las neuronas (para resetear potencial acumulado)
+     * @param todasNeuronas Lista de todas las neuronas
      * @param timestamp Timestamp actual
      */
     public void propagarHaciaAdelante(List<Conexion> conexiones, 
@@ -56,54 +62,140 @@ public class PropagadorSeñal implements Serializable {
                                       long timestamp) {
         long ventanaTemporal = 100L; // Ventana temporal para STDP
         
-        // Fase 1: Propagar señales a través de conexiones
-        // Y aplicar plasticidad hebiana simultáneamente
+        // ========== PASADA 1: SENSORIAL → INTERMEDIA ==========
+        
+        // Fase 1.1: Propagar señales hacia neuronas intermedias
         for (Conexion conexion : conexiones) {
             Neurona pre = conexion.getPresinaptica();
             
-            // Si la neurona presináptica está activa, propagar señal
-            if (pre.estaActiva()) {
-                double señal = conexion.getPeso() * pre.getPotencial();
-                
-                // Enviar señal a todas las neuronas postsinápticas
-                for (Neurona post : conexion.getPostsinapticas()) {
+            // Solo procesar si la neurona presináptica está activa
+            if (!pre.estaActiva()) {
+                continue;
+            }
+            
+            // Verificar si esta conexión va hacia neuronas intermedias
+            boolean vaHaciaIntermedia = false;
+            for (Neurona post : conexion.getPostsinapticas()) {
+                if (post.getTipo() == TipoNeurona.INTER) {
+                    vaHaciaIntermedia = true;
+                    break;
+                }
+            }
+            
+            // Solo propagar si va hacia intermedias
+            if (!vaHaciaIntermedia) {
+                continue;
+            }
+            
+            double señal = conexion.getPeso() * pre.getPotencial();
+            
+            // Enviar señal a neuronas intermedias
+            for (Neurona post : conexion.getPostsinapticas()) {
+                if (post.getTipo() == TipoNeurona.INTER) {
                     post.recibirSeñal(señal);
                     
-                    // NUEVO: Aplicar plasticidad hebiana DURANTE la propagación
-                    // Si la neurona post también está activa, fortalecer conexión
-                    // Esto es más biológicamente correcto: "neuronas que disparan juntas, se conectan"
+                    // Aplicar plasticidad hebiana si ambas están activas
                     if (post.estaActiva()) {
-                        // Reforzar conexión (Long-Term Potentiation)
-                        double tasaRefuerzo = 0.02;
-                        double nuevoPeso = conexion.getPeso() + tasaRefuerzo;
-                        conexion.setPeso(Math.max(-1.0, Math.min(1.0, nuevoPeso)));
+                        double pesoActual = conexion.getPeso();
                         
-                        // Reforzar recursos por uso
+                        if (pesoActual > 0) {
+                            double tasaRefuerzo = 0.01;
+                            double lambda = 0.005;
+                            double penalizacion = lambda * pesoActual;
+                            double nuevoPeso = pesoActual + tasaRefuerzo - penalizacion;
+                            conexion.setPeso(Math.max(0.0, Math.min(1.0, nuevoPeso)));
+                        }
+                        
                         conexion.setRecursosAsignados(
                             Math.min(1.0, conexion.getRecursosAsignados() + 0.005)
                         );
                     }
                 }
-            } else {
-                // Si la conexión no se usa, debilitar por desuso
-                long tiempoSinUso = timestamp - conexion.getTimestampUltimaActivacion();
-                if (tiempoSinUso > ventanaTemporal) {
-                    double tasaDebilitamiento = 0.01;  // Más suave que refuerzo
-                    double nuevoPeso = conexion.getPeso() * (1.0 - tasaDebilitamiento);
-                    conexion.setPeso(nuevoPeso);
+            }
+        }
+        
+        // Fase 1.2: Evaluar activación de neuronas intermedias
+        for (Neurona neurona : todasNeuronas) {
+            if (neurona.getTipo() == TipoNeurona.INTER) {
+                neurona.evaluarActivacion(timestamp);
+            }
+        }
+        
+        // ========== PASADA 2: INTERMEDIA → MOTORA ==========
+        
+        // Fase 2.1: Propagar señales hacia neuronas motoras
+        for (Conexion conexion : conexiones) {
+            Neurona pre = conexion.getPresinaptica();
+            
+            // Solo procesar si la neurona presináptica está activa
+            if (!pre.estaActiva()) {
+                // DESACTIVADO: Debilitamiento por desuso durante entrenamiento supervisado
+                // El debilitamiento por desuso es útil para consolidación, pero durante
+                // entrenamiento supervisado causa colapso de pesos y divergencia.
+                // La regularización L2 ya controla el crecimiento excesivo de pesos.
+                
+                // // Debilitar por desuso
+                // long tiempoSinUso = timestamp - conexion.getTimestampUltimaActivacion();
+                // if (tiempoSinUso > ventanaTemporal) {
+                //     double pesoActual = conexion.getPeso();
+                //     
+                //     if (pesoActual > 0) {
+                //         double tasaDebilitamiento = 0.015;
+                //         double nuevoPeso = pesoActual * (1.0 - tasaDebilitamiento);
+                //         conexion.setPeso(nuevoPeso);
+                //     }
+                //     
+                //     conexion.setRecursosAsignados(
+                //         Math.max(0.0, conexion.getRecursosAsignados() - 0.01)
+                //     );
+                // }
+                continue;
+            }
+            
+            // Verificar si esta conexión va hacia neuronas motoras
+            boolean vaHaciaMotora = false;
+            for (Neurona post : conexion.getPostsinapticas()) {
+                if (post.getTipo() == TipoNeurona.MOTORA) {
+                    vaHaciaMotora = true;
+                    break;
+                }
+            }
+            
+            // Solo propagar si va hacia motoras
+            if (!vaHaciaMotora) {
+                continue;
+            }
+            
+            double señal = conexion.getPeso() * pre.getPotencial();
+            
+            // Enviar señal a neuronas motoras
+            for (Neurona post : conexion.getPostsinapticas()) {
+                if (post.getTipo() == TipoNeurona.MOTORA) {
+                    post.recibirSeñal(señal);
                     
-                    // Penalizar recursos por falta de uso
-                    conexion.setRecursosAsignados(
-                        Math.max(0.0, conexion.getRecursosAsignados() - 0.01)
-                    );
+                    // Aplicar plasticidad hebiana si ambas están activas
+                    if (post.estaActiva()) {
+                        double pesoActual = conexion.getPeso();
+                        
+                        if (pesoActual > 0) {
+                            double tasaRefuerzo = 0.01;
+                            double lambda = 0.005;
+                            double penalizacion = lambda * pesoActual;
+                            double nuevoPeso = pesoActual + tasaRefuerzo - penalizacion;
+                            conexion.setPeso(Math.max(0.0, Math.min(1.0, nuevoPeso)));
+                        }
+                        
+                        conexion.setRecursosAsignados(
+                            Math.min(1.0, conexion.getRecursosAsignados() + 0.005)
+                        );
+                    }
                 }
             }
         }
         
-        // Fase 2: Evaluar activación de todas las neuronas
+        // Fase 2.2: Evaluar activación de neuronas motoras
         for (Neurona neurona : todasNeuronas) {
-            // No evaluar neuronas sensoriales (ya están activadas por inputs)
-            if (neurona.getTipo() != es.jastxz.nn.enums.TipoNeurona.SENSORIAL) {
+            if (neurona.getTipo() == TipoNeurona.MOTORA) {
                 neurona.evaluarActivacion(timestamp);
             }
         }
@@ -127,7 +219,7 @@ public class PropagadorSeñal implements Serializable {
             Neurona pre = conexion.getPresinaptica();
             
             // Si la neurona presináptica está activa, propagar feedback
-            if (pre.estaActiva()) {
+            if (pre.estaActiva() & conexion.getPeso() > 0) {
                 double feedbackSeñal = conexion.getPeso() * pre.getPotencial() * 0.01; // Factor de modulación muy pequeño
                 
                 // Ajustar peso de la conexión feedback basándose en activación
@@ -142,17 +234,22 @@ public class PropagadorSeñal implements Serializable {
     /**
      * Extrae los valores de salida de la capa motora
      * 
-     * REFACTORIZADO: Calcula output basándose en pesos de conexiones (conocimiento)
-     * en lugar de valorAlmacenado (que es conceptualmente incorrecto).
+     * MEJORADO: Output continuo basado en potencial acumulado
      * 
      * Principio biológico:
-     * - Neuronas: Procesadores (integran y disparan)
-     * - Sinapsis: Memoria (almacenan conocimiento en sus pesos)
-     * - Output: Suma ponderada de conexiones activas
+     * - El output representa la frecuencia de disparo de la neurona
+     * - Proporcional al potencial integrado (suma de señales)
+     * - Sigmoide para mapear a rango [0,1] de forma suave
+     * 
+     * Ventajas:
+     * - Output continuo (puede alcanzar valores intermedios como 0.6)
+     * - Diferenciable (gradientes suaves para aprendizaje)
+     * - Compatible con red clásica (ambas usan sigmoide)
+     * - Biológicamente defendible (frecuencia de disparo)
      * 
      * @param capaMotora Lista de neuronas motoras
      * @param conexiones Lista de todas las conexiones de la red
-     * @return Array de valores de salida
+     * @return Array de valores de salida continuos [0,1]
      */
     public double[] getOutputs(List<Neurona> capaMotora, List<Conexion> conexiones) {
         double[] outputs = new double[capaMotora.size()];
@@ -160,8 +257,8 @@ public class PropagadorSeñal implements Serializable {
         for (int i = 0; i < capaMotora.size(); i++) {
             Neurona neuronaMotora = capaMotora.get(i);
             
-            // Calcular output basándose en conexiones que llegan a esta neurona motora
-            double sumaConexiones = 0.0;
+            // Calcular potencial acumulado (suma ponderada de señales)
+            double potencialAcumulado = 0.0;
             int contadorConexiones = 0;
             
             for (Conexion c : conexiones) {
@@ -169,21 +266,30 @@ public class PropagadorSeñal implements Serializable {
                 if (c.getPostsinapticas().contains(neuronaMotora)) {
                     Neurona pre = c.getPresinaptica();
                     
-                    // Solo considerar conexiones desde neuronas activas
+                    // Solo contar señales de neuronas activas
                     if (pre.estaActiva()) {
-                        // El conocimiento está en el peso de la conexión
-                        sumaConexiones += c.getPeso();
+                        double señal = c.getPeso() * pre.getPotencial();
+                        potencialAcumulado += señal;
                         contadorConexiones++;
                     }
                 }
             }
             
-            // Output: promedio de pesos de conexiones activas
-            // Normalizado entre 0 y 1 (asumiendo pesos en [-1, 1])
+            // Calcular output usando sigmoide del potencial
             if (contadorConexiones > 0) {
-                double promedio = sumaConexiones / contadorConexiones;
-                // Normalizar de [-1, 1] a [0, 1]
-                outputs[i] = (promedio + 1.0) / 2.0;
+                // Normalizar por número de conexiones activas
+                double potencialPromedio = potencialAcumulado / contadorConexiones;
+                
+                // Normalizar a rango apropiado para sigmoide
+                // Potencial PICO = 40.0, mapear a [-5, 5] para buena distribución
+                // x = 0 → output = 0.5 (punto medio)
+                // x = -5 → output ≈ 0.007 (casi 0)
+                // x = +5 → output ≈ 0.993 (casi 1)
+                double x = (potencialPromedio / 40.0) * 10.0 - 5.0;
+                
+                // Sigmoide: 1 / (1 + e^(-x))
+                // Representa frecuencia de disparo proporcional al potencial
+                outputs[i] = 1.0 / (1.0 + Math.exp(-x));
             } else {
                 // Si no hay conexiones activas, output es 0
                 outputs[i] = 0.0;

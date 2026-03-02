@@ -85,6 +85,9 @@ public class RedNeuralExperimental implements Serializable {
     private final GestorCompeticion gestorCompeticion;
     private final GestorConsolidacionAdaptativa gestorConsolidacionAdaptativa;
     
+    // Historial de error para tasa de aprendizaje adaptativa
+    private double errorSuavizado = 0.0;
+    
     /**
      * Constructor con topología configurable
      * 
@@ -609,36 +612,63 @@ public class RedNeuralExperimental implements Serializable {
             // Procesar inputs
             double[] outputs = procesar(inputs);
             
-            // MEJORA: Supervisión fuerte - Forzar activación de neuronas motoras basándose en target
+            // HÍBRIDO A+B: Forzar activación motora solo en primeras iteraciones
             // Esto resuelve el problema de "huevo y gallina" con backpropagation coactivo
-            // La neurona motora necesita activarse para que se ajusten los pesos hacia ella
-            for (int j = 0; j < capaMotora.size(); j++) {
-                Neurona neuronaMotora = capaMotora.get(j);
-                double target = targets[j];
-                
-                // Si el target es alto (>0.3) y la neurona no está activa, forzar activación
-                // Umbral más bajo (0.3) para permitir aprendizaje incluso con targets moderados
-                if (target > 0.3 && !neuronaMotora.estaActiva()) {
-                    neuronaMotora.activar(timestampGlobal);
-                }
-                // Si el target es bajo (<0.3) y la neurona está activa, desactivarla
-                // Esto enseña a la red cuándo NO activarse
-                else if (target < 0.3 && neuronaMotora.estaActiva()) {
-                    neuronaMotora.resetear();
+            // Después de las primeras iteraciones, la red aprende a activarse naturalmente
+            int iteracionesForzadas = Math.min(20, iteraciones / 5);  // 20% o mínimo 20
+            if (i < iteracionesForzadas) {
+                for (int j = 0; j < capaMotora.size(); j++) {
+                    Neurona neuronaMotora = capaMotora.get(j);
+                    double target = targets[j];
+                    
+                    // Si el target es alto (>0.3) y la neurona no está activa, forzar activación
+                    if (target > 0.3 && !neuronaMotora.estaActiva()) {
+                        neuronaMotora.activar(timestampGlobal);
+                    }
+                    // Si el target es bajo (<0.3) y la neurona está activa, desactivarla
+                    else if (target < 0.3 && neuronaMotora.estaActiva()) {
+                        neuronaMotora.resetear();
+                    }
                 }
             }
             
             // Calcular error
             double[] errores = new double[targets.length];
+            double errorPromedio = 0.0;
             for (int j = 0; j < targets.length; j++) {
                 errores[j] = targets[j] - outputs[j];
+                errorPromedio += Math.abs(errores[j]);
+            }
+            errorPromedio /= targets.length;
+            
+            // PASO 1: DESACTIVAR plasticidad hebiana durante entrenamiento activo
+            // La plasticidad hebiana debe ocurrir SOLO durante consolidación
+            // Durante entrenamiento, solo usar aprendizaje supervisado
+            // entrenador.aplicarPlasticidadHebianaGlobal(conexiones, timestampGlobal);
+            
+            // TASA ADAPTATIVA CON PROMEDIO MÓVIL: Suavizar fluctuaciones de error
+            // Esto evita retroalimentación positiva (error ↑ → tasa ↑ → error ↑)
+            double tasaMaxima = 0.3;      // Tasa cuando error es alto
+            double tasaMinima = 0.05;     // Tasa cuando error es muy bajo
+            double errorReferencia = 0.2; // Error considerado "alto"
+            
+            // Promedio móvil exponencial (EMA) para suavizar error
+            // Primera iteración: inicializar con error actual
+            if (i == 0) {
+                errorSuavizado = errorPromedio;
+            } else {
+                // EMA: 70% peso al historial, 30% al error actual
+                // Esto suaviza fluctuaciones pero responde a cambios reales
+                double alpha = 0.3;  // Factor de suavizado
+                errorSuavizado = alpha * errorPromedio + (1.0 - alpha) * errorSuavizado;
             }
             
-            // Aplicar plasticidad hebiana a todas las conexiones
-            entrenador.aplicarPlasticidadHebianaGlobal(conexiones, timestampGlobal);
+            // Calcular tasa proporcional al error SUAVIZADO
+            double factorError = Math.min(1.0, errorSuavizado / errorReferencia);
+            double tasaAprendizaje = tasaMinima + (tasaMaxima - tasaMinima) * factorError;
             
             // Modular aprendizaje basándose en error (supervisión débil)
-            entrenador.modularAprendizajePorError(capaMotora, capasInterneuronas, errores, conexiones);
+            entrenador.modularAprendizajePorError(capaMotora, capasInterneuronas, errores, conexiones, tasaAprendizaje);
             
             // Medir tiempo transcurrido
             long tiempoFin = System.currentTimeMillis();
@@ -911,17 +941,34 @@ public class RedNeuralExperimental implements Serializable {
         
         for (Conexion conexion : conexiones) {
             long tiempoSinUso = timestampGlobal - conexion.getTimestampUltimaActivacion();
+            double pesoActual = conexion.getPeso();
             
             if (tiempoSinUso < ventanaTemporal) {
                 // Conexión usada recientemente: reforzar ligeramente
                 double ajuste = 0.02;  // 2% de refuerzo
-                double nuevoPeso = conexion.getPeso() * (1.0 + ajuste);
-                conexion.setPeso(Math.min(1.0, nuevoPeso));  // Clamp a 1.0
+                
+                if (pesoActual < 0) {
+                    // Conexión inhibitoria: reforzar = más negativo
+                    double nuevoPeso = pesoActual * (1.0 + ajuste);
+                    conexion.setPeso(Math.max(-1.0, nuevoPeso));  // Clamp a -1.0
+                } else {
+                    // Conexión excitatoria: reforzar = más positivo
+                    double nuevoPeso = pesoActual * (1.0 + ajuste);
+                    conexion.setPeso(Math.min(1.0, nuevoPeso));  // Clamp a 1.0
+                }
             } else {
                 // Conexión no usada: debilitar ligeramente
                 double ajuste = 0.01;  // 1% de debilitamiento
-                double nuevoPeso = conexion.getPeso() * (1.0 - ajuste);
-                conexion.setPeso(Math.max(0.0, nuevoPeso));  // Clamp a 0.0
+                
+                if (pesoActual < 0) {
+                    // Conexión inhibitoria: debilitar = menos negativo (hacia 0)
+                    double nuevoPeso = pesoActual * (1.0 - ajuste);
+                    conexion.setPeso(Math.max(-1.0, nuevoPeso));  // Clamp a -1.0
+                } else {
+                    // Conexión excitatoria: debilitar = menos positivo (hacia 0)
+                    double nuevoPeso = pesoActual * (1.0 - ajuste);
+                    conexion.setPeso(Math.max(0.0, nuevoPeso));  // Clamp a 0.0
+                }
             }
         }
     }

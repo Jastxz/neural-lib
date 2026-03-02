@@ -146,12 +146,21 @@ public class Neurona implements Serializable {
             return false;
         }
         
+        // CORRECCIÓN: Normalizar potencial acumulado a escala [0,1]
+        // El potencial acumulado es la suma de (peso × potencial)
+        // donde potencial = 40.0 cuando activa, peso típicamente [-1, 1]
+        // Para comparar con umbralActivacion [0,1], necesitamos normalizar
+        
+        // Normalización: dividir por un valor de referencia (potencial PICO)
+        double potencialNormalizado = Math.abs(potencialAcumulado) / PotencialMemoria.PICO.getValor();
+        
         // Usar el umbral personalizado de esta neurona
         // Ajustado por facilitación temporal (engramas)
         double umbralAjustado = umbralActivacion * (1.0 - facilitacionTemporal);
         
         // Activación todo-o-nada
-        if (potencialAcumulado >= umbralAjustado) {
+        // Solo activar si el potencial es positivo (excitatorio neto)
+        if (potencialAcumulado > 0 && potencialNormalizado >= umbralAjustado) {
             activar(timestampActual);
             facilitacionTemporal = 0.0;  // Reset tras activación
             potencialAcumulado = 0.0;

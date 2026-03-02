@@ -34,8 +34,8 @@ public class Modelo3enRayaExperimental {
      * Constructor con red nueva
      */
     public Modelo3enRayaExperimental() {
-        // Topología: 10 inputs (9 casillas + turno), 30 ocultas, 9 outputs (movimientos)
-        cerebro = new RedNeuralExperimental(new int[]{10, 30, 9}, 0.9);
+        // Topología: 10 inputs (9 casillas + turno), 45 ocultas, 9 outputs (movimientos)
+        cerebro = new RedNeuralExperimental(new int[]{10, 45, 9}, 0.9);
         
         // Activar sistemas biológicos
         cerebro.activarModoPredictivo(true);
@@ -85,6 +85,7 @@ public class Modelo3enRayaExperimental {
         System.out.println("=== Entrenamiento Supervisado (Red Experimental) ===");
         System.out.println("Datos de entrenamiento: " + datosEntrenamiento.size());
         System.out.println("Épocas: " + epocas);
+        int mod = (int) Math.floor(epocas*0.1);
         
         for (int epoca = 1; epoca <= epocas; epoca++) {
             double errorTotal = 0.0;
@@ -116,7 +117,7 @@ public class Modelo3enRayaExperimental {
             }
             
             // Mostrar progreso cada 100 épocas (consolidación es automática)
-            if (epoca % 100 == 0) {
+            if (epoca % mod == 0) {
                 double errorPromedio = errorTotal / datosEntrenamiento.size();
                 System.out.printf("Época %d/%d - Error promedio: %.4f\n", 
                     epoca, epocas, errorPromedio);

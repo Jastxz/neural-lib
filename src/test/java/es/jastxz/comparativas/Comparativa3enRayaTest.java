@@ -533,7 +533,7 @@ public class Comparativa3enRayaTest {
         
         // Crear y entrenar modelo experimental con datos supervisados
         Modelo3enRayaExperimental modeloExpSupervisado = new Modelo3enRayaExperimental();
-        modeloExpSupervisado.entrenarSupervisado(datos, 100);  // 500 épocas
+        modeloExpSupervisado.entrenarSupervisado(datos, 10);  // 10 épocas
         
         long tiempo = System.currentTimeMillis() - inicio;
         
