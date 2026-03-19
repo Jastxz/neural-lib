@@ -26,6 +26,9 @@
 hs_err_pid*
 replay_pid*
 
+# jqwik
+.jqwik-database
+
 # Unnecesary directories
 /target
 .kiro
