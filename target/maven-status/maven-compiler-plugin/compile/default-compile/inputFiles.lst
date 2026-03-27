@@ -46,6 +46,12 @@
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/genetico/OperadorCruce.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/genetico/OperadorMutacion.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/genetico/SelectorTorneo.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/nube/ConfiguracionNube.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/nube/ConfiguracionNubeBuilder.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/nube/InformeNube.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/nube/MotorNube.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/nube/PoliticaEliminacion.java
+/home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/nube/PoliticaEliminacionSecuencial.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/spiking/ColaEventos.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/spiking/ConfiguracionRed.java
 /home/javier/Repos/neural-lib/src/main/java/es/jastxz/nn/spiking/ConfiguracionRedBuilder.java
