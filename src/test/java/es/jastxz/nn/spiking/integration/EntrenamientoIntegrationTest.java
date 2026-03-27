@@ -236,6 +236,7 @@ public class EntrenamientoIntegrationTest {
             .topologia(2, 1)
             .parametrosLIF(-55.0, -70.0, 20.0, 2)
             .parametrosSTDP(0.1, 0.12, 20.0, 20.0) // Amplitudes grandes para cambios rápidos
+            .rangoPesos(0.0, 1.0)
             .build();
         
         RedNeuralSpiking red = new RedNeuralSpiking(config);

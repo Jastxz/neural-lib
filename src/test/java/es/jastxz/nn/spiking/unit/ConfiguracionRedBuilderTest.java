@@ -32,7 +32,9 @@ class ConfiguracionRedBuilderTest {
         assertEquals(50, config.ventanaDecodificacion);
         assertEquals(TipoInicializacion.UNIFORME, config.tipoInicializacion);
         assertEquals(0.0, config.pesoMin, 0.001);
-        assertEquals(1.0, config.pesoMax, 0.001);
+        // pesoMax se autoconfigura basándose en la brecha umbral-reposo:
+        // brecha = -55 - (-70) = 15 mV, pesoRelay = 15 * 1.1 = 16.5, pesoMax = 16.5 * 2 = 33.0
+        assertEquals(33.0, config.pesoMax, 0.001);
         assertEquals(TipoNormalizacion.L1, config.tipoNormalizacion);
         assertEquals(1.0, config.valorObjetivoNormalizacion, 0.001);
         assertEquals(1, config.retardoMin);

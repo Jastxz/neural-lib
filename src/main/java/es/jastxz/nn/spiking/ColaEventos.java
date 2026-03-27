@@ -47,15 +47,21 @@ public class ColaEventos implements java.io.Serializable {
      * Los eventos con timestamp menor tienen mayor prioridad y se procesan primero.
      */
     private final PriorityQueue<EventoSpike> cola;
-    
+
+    /**
+     * Buffer reutilizable para evitar crear una nueva lista en cada llamada a obtenerEventos.
+     */
+    private final List<EventoSpike> bufferEventos;
+
     /**
      * Construye una nueva cola de eventos vacía.
-     * 
+     *
      * <p>La cola se inicializa con capacidad por defecto y ordenamiento natural
      * de EventoSpike (por timestamp).</p>
      */
     public ColaEventos() {
         this.cola = new PriorityQueue<>();
+        this.bufferEventos = new ArrayList<>();
     }
     
     /**
@@ -92,14 +98,13 @@ public class ColaEventos implements java.io.Serializable {
      * @return lista de eventos con el timestamp especificado (nunca null, puede estar vacía)
      */
     public List<EventoSpike> obtenerEventos(long timestamp) {
-        List<EventoSpike> eventos = new ArrayList<>();
-        
-        // Extraer todos los eventos que coinciden con el timestamp
+        bufferEventos.clear();
+
         while (!cola.isEmpty() && cola.peek().getTimestamp() == timestamp) {
-            eventos.add(cola.poll());
+            bufferEventos.add(cola.poll());
         }
-        
-        return eventos;
+
+        return bufferEventos;
     }
     
     /**

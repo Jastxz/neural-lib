@@ -66,7 +66,8 @@ class RedNeuralSpikingTest {
                 1, 5,
                 false, 10.0, 0.01,
                 false, 2, 0.5,
-                1.0
+                1.0,
+                false, false, false, 0, 2.0, 0.1
             );
             new RedNeuralSpiking(config);
         });

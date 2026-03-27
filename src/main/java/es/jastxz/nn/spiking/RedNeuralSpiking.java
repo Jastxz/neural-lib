@@ -1,6 +1,8 @@
 package es.jastxz.nn.spiking;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -51,6 +53,23 @@ public class RedNeuralSpiking implements Serializable {
      * y tiene un peso y retardo asociados.
      */
     private final List<SinapsisSpiking> sinapsis;
+
+    // ========== Índices de acceso rápido (transient, se reconstruyen) ==========
+
+    /**
+     * Mapa de neurona por ID para búsqueda O(1) en lugar de O(n).
+     */
+    private transient Map<Long, NeuronaSpiking> neuronaPorId;
+
+    /**
+     * Sinapsis indexadas por ID de neurona presinaptica para propagación O(k).
+     */
+    private transient Map<Long, List<SinapsisSpiking>> sinapsisPorPresinaptica;
+
+    /**
+     * Sinapsis indexadas por ID de neurona postsinaptica para STDP O(k).
+     */
+    private transient Map<Long, List<SinapsisSpiking>> sinapsisPorPostsinaptica;
 
     // ========== Simulación Temporal ==========
 
@@ -242,6 +261,9 @@ public class RedNeuralSpiking implements Serializable {
         // Inicializar lista de sinapsis vacía
         this.sinapsis = new java.util.ArrayList<>();
 
+        // Inicializar índices de acceso rápido
+        reconstruirIndices();
+
         // Inicializar estado temporal (Requisito 7.3)
         this.timestepActual = 0;
         this.duracionTimestep = configuracion.duracionTimestep;
@@ -357,6 +379,15 @@ public class RedNeuralSpiking implements Serializable {
 
         // Agregar sinapsis a la lista (Requisito 6.3)
         this.sinapsis.add(sinapsis);
+
+        // Actualizar índices de acceso rápido
+        asegurarIndices();
+        sinapsisPorPresinaptica
+            .computeIfAbsent(pre.getId(), k -> new ArrayList<>())
+            .add(sinapsis);
+        sinapsisPorPostsinaptica
+            .computeIfAbsent(post.getId(), k -> new ArrayList<>())
+            .add(sinapsis);
     }
 
     /**
@@ -483,14 +514,8 @@ public class RedNeuralSpiking implements Serializable {
      * @return true si la neurona existe, false en caso contrario
      */
     public boolean existeNeurona(long id) {
-        for (List<NeuronaSpiking> capa : capas) {
-            for (NeuronaSpiking neurona : capa) {
-                if (neurona.getId() == id) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        asegurarIndices();
+        return neuronaPorId.containsKey(id);
     }
 
     /**
@@ -678,7 +703,12 @@ public class RedNeuralSpiking implements Serializable {
             }
         }
 
-        // 9. Aplicar homeostasis periódicamente si está activa (Requisito 18.1)
+        // 9. Aplicar Winner-Take-All si está activo (cada 5 timesteps para rendimiento)
+        if (configuracion.wtaActivo && timestepActual % 5 == 0) {
+            aplicarWTA();
+        }
+
+        // 10. Aplicar homeostasis periódicamente si está activa (Requisito 18.1)
         if (configuracion.homeostasisActiva && timestepActual > 0 && timestepActual % FRECUENCIA_HOMEOSTASIS == 0) {
             for (List<NeuronaSpiking> capa : capas) {
                 for (NeuronaSpiking neurona : capa) {
@@ -692,7 +722,7 @@ public class RedNeuralSpiking implements Serializable {
             }
         }
 
-        // 10. Incrementar timestep actual (Requisito 7.1)
+        // 11. Incrementar timestep actual (Requisito 7.1)
         timestepActual++;
     }
 
@@ -707,15 +737,13 @@ public class RedNeuralSpiking implements Serializable {
      * @param timestamp el timestamp en el que se generó el spike
      */
     private void propagarSpikeDeNeurona(NeuronaSpiking neurona, long timestamp) {
-        // Buscar todas las sinapsis donde esta neurona es presinaptica
-        for (SinapsisSpiking sinapsis : this.sinapsis) {
-            if (sinapsis.getPresinaptica().getId() == neurona.getId()) {
-                // Propagar spike a través de la sinapsis
-                EventoSpike eventoFuturo = sinapsis.propagarSpike(timestamp);
+        asegurarIndices();
+        List<SinapsisSpiking> conexiones = sinapsisPorPresinaptica.get(neurona.getId());
+        if (conexiones == null) return;
 
-                // Encolar evento para entrega futura (timestamp + retardo)
-                colaEventos.encolar(eventoFuturo);
-            }
+        for (SinapsisSpiking sinapsis : conexiones) {
+            EventoSpike eventoFuturo = sinapsis.propagarSpike(timestamp);
+            colaEventos.encolar(eventoFuturo);
         }
     }
 
@@ -732,15 +760,13 @@ public class RedNeuralSpiking implements Serializable {
      * @param timestamp el timestamp en el que se generó el spike
      */
     private void aplicarSTDPParaNeurona(NeuronaSpiking neurona, long timestamp) {
-        // Aplicar STDP a sinapsis donde esta neurona es postsináptica
-        for (SinapsisSpiking sinapsis : this.sinapsis) {
-            if (sinapsis.getPostsinaptica().getId() == neurona.getId()) {
-                // Actualizar timestamp postsináptico
-                sinapsis.setTimestampUltimoSpikePostsinaptico(timestamp);
+        asegurarIndices();
+        List<SinapsisSpiking> conexiones = sinapsisPorPostsinaptica.get(neurona.getId());
+        if (conexiones == null) return;
 
-                // Aplicar STDP (el gestor calcula el cambio de peso basado en dt)
-                gestorSTDP.aplicarSTDP(sinapsis, timestamp);
-            }
+        for (SinapsisSpiking sinapsis : conexiones) {
+            sinapsis.setTimestampUltimoSpikePostsinaptico(timestamp);
+            gestorSTDP.aplicarSTDP(sinapsis, timestamp);
         }
     }
 
@@ -750,15 +776,48 @@ public class RedNeuralSpiking implements Serializable {
      * @param id el identificador único de la neurona
      * @return la neurona con el ID especificado, o null si no se encuentra
      */
-    private NeuronaSpiking buscarNeuronaPorId(long id) {
+    /**
+     * Reconstruye los índices de acceso rápido a partir de las capas y sinapsis actuales.
+     * Se llama en el constructor y tras deserialización.
+     */
+    private void reconstruirIndices() {
+        // Índice de neuronas por ID
+        int totalNeuronas = 0;
+        for (List<NeuronaSpiking> capa : capas) {
+            totalNeuronas += capa.size();
+        }
+        this.neuronaPorId = new HashMap<>(totalNeuronas * 2);
         for (List<NeuronaSpiking> capa : capas) {
             for (NeuronaSpiking neurona : capa) {
-                if (neurona.getId() == id) {
-                    return neurona;
-                }
+                neuronaPorId.put(neurona.getId(), neurona);
             }
         }
-        return null;
+
+        // Índices de sinapsis por neurona pre/post
+        this.sinapsisPorPresinaptica = new HashMap<>();
+        this.sinapsisPorPostsinaptica = new HashMap<>();
+        for (SinapsisSpiking s : sinapsis) {
+            sinapsisPorPresinaptica
+                .computeIfAbsent(s.getPresinaptica().getId(), k -> new ArrayList<>())
+                .add(s);
+            sinapsisPorPostsinaptica
+                .computeIfAbsent(s.getPostsinaptica().getId(), k -> new ArrayList<>())
+                .add(s);
+        }
+    }
+
+    /**
+     * Asegura que los índices transient estén inicializados (necesario tras deserialización).
+     */
+    private void asegurarIndices() {
+        if (neuronaPorId == null) {
+            reconstruirIndices();
+        }
+    }
+
+    private NeuronaSpiking buscarNeuronaPorId(long id) {
+        asegurarIndices();
+        return neuronaPorId.get(id);
     }
 
     // ========== Métodos de Consulta ==========
@@ -1232,12 +1291,13 @@ public class RedNeuralSpiking implements Serializable {
                 double error = target - actual;
 
                 if (Math.abs(error) > 0.05) {
-                    // Buscar sinapsis que conectan a esta neurona de salida
+                    asegurarIndices();
                     NeuronaSpiking neuronaSalida = capaSalida.get(j);
-                    for (SinapsisSpiking sin : this.sinapsis) {
-                        if (sin.getPostsinaptica().getId() == neuronaSalida.getId()) {
-                            // Ajustar peso proporcionalmente al error
-                            double ajuste = error * configuracion.amplitudLTP;
+                    List<SinapsisSpiking> conexiones = sinapsisPorPostsinaptica
+                        .get(neuronaSalida.getId());
+                    if (conexiones != null) {
+                        double ajuste = error * configuracion.amplitudLTP;
+                        for (SinapsisSpiking sin : conexiones) {
                             sin.ajustarPeso(ajuste);
                         }
                     }
@@ -1387,6 +1447,89 @@ public class RedNeuralSpiking implements Serializable {
         }
     }
 
+    /**
+     * Aplica el mecanismo Winner-Take-All (WTA) a las capas configuradas.
+     *
+     * <p>Para cada capa donde WTA está activo, encuentra la neurona con mayor
+     * potencial de membrana (la "ganadora") y suprime a las demás aplicando
+     * una señal inhibitoria proporcional a {@code fuerzaWTA}.</p>
+     *
+     * <p>Si {@code radioWTA == 0}, la competición es global (toda la capa).
+     * Si {@code radioWTA > 0}, la competición es local (solo neuronas dentro
+     * del radio compiten entre sí).</p>
+     *
+     * <p>Neuronas cuyo potencial de membrana está por debajo del umbral de
+     * activación (relativo al potencial de reposo) no participan en la
+     * competición.</p>
+     */
+    private void aplicarWTA() {
+        double reposo = configuracion.potencialReposo;
+        double brecha = configuracion.umbralDisparo - reposo;
+        double umbralAbsoluto = reposo + brecha * configuracion.umbralActivacionWTA;
+
+        for (int indiceCapa = 1; indiceCapa < capas.size(); indiceCapa++) {
+            boolean esCapaSalida = (indiceCapa == capas.size() - 1);
+
+            boolean aplicar = (esCapaSalida && configuracion.wtaCapaSalida)
+                    || (!esCapaSalida && configuracion.wtaCapasOcultas);
+
+            if (!aplicar) continue;
+
+            List<NeuronaSpiking> capa = capas.get(indiceCapa);
+
+            // Early-exit: verificar si alguna neurona supera el umbral
+            boolean hayActividad = false;
+            for (NeuronaSpiking neurona : capa) {
+                if (neurona.getPotencialMembrana() >= umbralAbsoluto) {
+                    hayActividad = true;
+                    break;
+                }
+            }
+            if (!hayActividad) continue;
+
+            if (configuracion.radioWTA == 0) {
+                aplicarWTAGrupo(capa, umbralAbsoluto);
+            } else {
+                for (int centro = 0; centro < capa.size(); centro++) {
+                    int inicio = Math.max(0, centro - configuracion.radioWTA);
+                    int fin = Math.min(capa.size(), centro + configuracion.radioWTA + 1);
+                    List<NeuronaSpiking> grupo = capa.subList(inicio, fin);
+                    aplicarWTAGrupo(grupo, umbralAbsoluto);
+                }
+            }
+        }
+    }
+
+    /**
+     * Aplica WTA a un grupo de neuronas: la de mayor potencial gana,
+     * las demás reciben una señal inhibitoria.
+     */
+    private void aplicarWTAGrupo(List<NeuronaSpiking> grupo, double umbralAbsoluto) {
+        if (grupo.size() <= 1) return;
+
+        // Encontrar la ganadora (mayor potencial de membrana)
+        NeuronaSpiking ganadora = null;
+        double maxPotencial = Double.NEGATIVE_INFINITY;
+
+        for (NeuronaSpiking neurona : grupo) {
+            if (neurona.getPotencialMembrana() >= umbralAbsoluto
+                    && neurona.getPotencialMembrana() > maxPotencial) {
+                maxPotencial = neurona.getPotencialMembrana();
+                ganadora = neurona;
+            }
+        }
+
+        if (ganadora == null) return; // Ninguna neurona supera el umbral
+
+        // Suprimir a las perdedoras
+        double fuerza = configuracion.fuerzaWTA;
+        for (NeuronaSpiking neurona : grupo) {
+            if (neurona != ganadora && neurona.getPotencialMembrana() >= umbralAbsoluto) {
+                neurona.recibirSeñal(-fuerza);
+            }
+        }
+    }
+
     // ========== Persistencia ==========
 
     /**
@@ -1425,6 +1568,8 @@ public class RedNeuralSpiking implements Serializable {
                 new java.io.FileInputStream(filename))) {
             red = (RedNeuralSpiking) ois.readObject();
         }
+        // Reconstruir índices transient tras deserialización
+        red.reconstruirIndices();
         // Resetear estado temporal después de cargar (Requisito 12.7)
         red.resetearEstadoTemporal();
         return red;
@@ -1465,7 +1610,13 @@ public class RedNeuralSpiking implements Serializable {
         sb.append("  \"inhibicionLateralActiva\": ").append(configuracion.inhibicionLateralActiva).append(",\n");
         sb.append("  \"radioInhibicion\": ").append(configuracion.radioInhibicion).append(",\n");
         sb.append("  \"fuerzaInhibicion\": ").append(configuracion.fuerzaInhibicion).append(",\n");
-        sb.append("  \"duracionTimestep\": ").append(configuracion.duracionTimestep).append("\n");
+        sb.append("  \"duracionTimestep\": ").append(configuracion.duracionTimestep).append(",\n");
+        sb.append("  \"wtaActivo\": ").append(configuracion.wtaActivo).append(",\n");
+        sb.append("  \"wtaCapaSalida\": ").append(configuracion.wtaCapaSalida).append(",\n");
+        sb.append("  \"wtaCapasOcultas\": ").append(configuracion.wtaCapasOcultas).append(",\n");
+        sb.append("  \"radioWTA\": ").append(configuracion.radioWTA).append(",\n");
+        sb.append("  \"fuerzaWTA\": ").append(configuracion.fuerzaWTA).append(",\n");
+        sb.append("  \"umbralActivacionWTA\": ").append(configuracion.umbralActivacionWTA).append("\n");
         sb.append("}");
         return sb.toString();
     }
@@ -1563,6 +1714,16 @@ public class RedNeuralSpiking implements Serializable {
 
             // Timestep
             builder.duracionTimestep(parseDouble(campos, "duracionTimestep", 1.0));
+
+            // WTA
+            boolean wtaActivo = parseBoolean(campos, "wtaActivo", false);
+            boolean wtaCapaSalida = parseBoolean(campos, "wtaCapaSalida", false);
+            boolean wtaCapasOcultas = parseBoolean(campos, "wtaCapasOcultas", false);
+            int radioWTA = parseInt(campos, "radioWTA", 0);
+            double fuerzaWTA = parseDouble(campos, "fuerzaWTA", 2.0);
+            double umbralActivacionWTA = parseDouble(campos, "umbralActivacionWTA", 0.1);
+            builder.wta(wtaActivo, wtaCapaSalida, wtaCapasOcultas,
+                    radioWTA, fuerzaWTA, umbralActivacionWTA);
 
             return new RedNeuralSpiking(builder.build());
         } catch (IllegalArgumentException e) {

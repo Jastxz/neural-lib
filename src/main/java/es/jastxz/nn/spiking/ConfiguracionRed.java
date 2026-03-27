@@ -216,6 +216,53 @@ public class ConfiguracionRed implements Serializable {
      * Resolución temporal de la simulación. Típicamente 1.0 ms.
      */
     public final double duracionTimestep;
+
+    // ==================== Winner-Take-All (Opcional) ====================
+
+    /**
+     * Indica si el mecanismo Winner-Take-All está activo.
+     * Cuando está activo, solo la neurona con mayor actividad en un grupo
+     * mantiene su potencial; las demás son suprimidas.
+     */
+    public final boolean wtaActivo;
+
+    /**
+     * Indica si WTA se aplica en la capa de salida.
+     * Fuerza que una sola neurona de salida "gane", mejorando la
+     * discriminación en problemas de clasificación multi-clase.
+     */
+    public final boolean wtaCapaSalida;
+
+    /**
+     * Indica si WTA se aplica en capas ocultas.
+     * Fuerza representaciones sparse donde solo unas pocas neuronas
+     * se activan por patrón.
+     */
+    public final boolean wtaCapasOcultas;
+
+    /**
+     * Radio de competición WTA en número de neuronas.
+     * Define el tamaño del grupo de neuronas que compiten entre sí.
+     * Un valor de 0 significa competición global (toda la capa).
+     * Típicamente 0 (global) o 3-5 (local).
+     */
+    public final int radioWTA;
+
+    /**
+     * Fuerza de supresión WTA.
+     * Magnitud de la señal inhibitoria aplicada a las neuronas perdedoras.
+     * Valores mayores producen supresión más agresiva.
+     * Típicamente 1.0-5.0.
+     */
+    public final double fuerzaWTA;
+
+    /**
+     * Umbral mínimo de activación para participar en la competición WTA.
+     * Neuronas con potencial de membrana por debajo de este umbral
+     * (relativo al potencial de reposo) no participan en la competición.
+     * Típicamente 0.0-0.5 (fracción de la brecha umbral-reposo).
+     */
+    public final double umbralActivacionWTA;
     
     /**
      * Constructor que valida todos los parámetros.
@@ -249,6 +296,12 @@ public class ConfiguracionRed implements Serializable {
      * @param radioInhibicion radio de inhibición (debe ser > 0 si inhibición activa)
      * @param fuerzaInhibicion fuerza de inhibición (debe ser > 0 si inhibición activa)
      * @param duracionTimestep duración del timestep en ms (debe ser > 0)
+     * @param wtaActivo indica si WTA está activo
+     * @param wtaCapaSalida indica si WTA se aplica en la capa de salida
+     * @param wtaCapasOcultas indica si WTA se aplica en capas ocultas
+     * @param radioWTA radio de competición WTA (0 = global, >0 = local)
+     * @param fuerzaWTA fuerza de supresión WTA (debe ser > 0 si WTA activo)
+     * @param umbralActivacionWTA umbral mínimo de activación para competir
      * 
      * @throws IllegalArgumentException si algún parámetro es inválido
      */
@@ -278,7 +331,13 @@ public class ConfiguracionRed implements Serializable {
             boolean inhibicionLateralActiva,
             int radioInhibicion,
             double fuerzaInhibicion,
-            double duracionTimestep) {
+            double duracionTimestep,
+            boolean wtaActivo,
+            boolean wtaCapaSalida,
+            boolean wtaCapasOcultas,
+            int radioWTA,
+            double fuerzaWTA,
+            double umbralActivacionWTA) {
         
         // Validar topología
         if (topologia == null || topologia.length == 0) {
@@ -448,6 +507,24 @@ public class ConfiguracionRed implements Serializable {
             );
         }
         this.duracionTimestep = duracionTimestep;
+
+        // Validar WTA
+        this.wtaActivo = wtaActivo;
+        this.wtaCapaSalida = wtaCapaSalida;
+        this.wtaCapasOcultas = wtaCapasOcultas;
+        if (wtaActivo) {
+            if (radioWTA < 0) {
+                throw new IllegalArgumentException(
+                    "Radio WTA no puede ser negativo: " + radioWTA);
+            }
+            if (fuerzaWTA <= 0) {
+                throw new IllegalArgumentException(
+                    "Fuerza WTA debe ser positiva cuando WTA está activo, recibido: " + fuerzaWTA);
+            }
+        }
+        this.radioWTA = radioWTA;
+        this.fuerzaWTA = fuerzaWTA;
+        this.umbralActivacionWTA = umbralActivacionWTA;
     }
     
     /**
@@ -510,6 +587,12 @@ public class ConfiguracionRed implements Serializable {
                 ", radioInhibicion=" + radioInhibicion +
                 ", fuerzaInhibicion=" + fuerzaInhibicion +
                 ", duracionTimestep=" + duracionTimestep +
+                ", wtaActivo=" + wtaActivo +
+                ", wtaCapaSalida=" + wtaCapaSalida +
+                ", wtaCapasOcultas=" + wtaCapasOcultas +
+                ", radioWTA=" + radioWTA +
+                ", fuerzaWTA=" + fuerzaWTA +
+                ", umbralActivacionWTA=" + umbralActivacionWTA +
                 '}';
     }
 }

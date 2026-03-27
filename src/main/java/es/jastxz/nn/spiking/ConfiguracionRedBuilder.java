@@ -78,7 +78,18 @@ public class ConfiguracionRedBuilder {
     
     // Simulación
     private double duracionTimestep = 1.0;          // ms
-    
+
+    // Winner-Take-All (desactivado por defecto)
+    private boolean wtaActivo = false;
+    private boolean wtaCapaSalida = false;
+    private boolean wtaCapasOcultas = false;
+    private int radioWTA = 0;                       // 0 = global
+    private double fuerzaWTA = 2.0;
+    private double umbralActivacionWTA = 0.1;
+
+    // Control de autoconfiguración
+    private boolean pesosConfiguradosManualmente = false;
+
     // ==================== Métodos Builder ====================
     
     /**
@@ -285,6 +296,7 @@ public class ConfiguracionRedBuilder {
         this.tipoInicializacion = tipo;
         this.pesoMin = min;
         this.pesoMax = max;
+        this.pesosConfiguradosManualmente = true;
         return this;
     }
     
@@ -309,6 +321,7 @@ public class ConfiguracionRedBuilder {
     public ConfiguracionRedBuilder rangoPesos(double min, double max) {
         this.pesoMin = min;
         this.pesoMax = max;
+        this.pesosConfiguradosManualmente = true;
         return this;
     }
     
@@ -519,10 +532,163 @@ public class ConfiguracionRedBuilder {
         this.duracionTimestep = duracion;
         return this;
     }
-    
+
+    /**
+     * Configura el mecanismo Winner-Take-All con todos los parámetros.
+     *
+     * @param activo      si WTA está activo
+     * @param capaSalida  si se aplica en la capa de salida
+     * @param capasOcultas si se aplica en capas ocultas
+     * @param radio       radio de competición (0 = global)
+     * @param fuerza      fuerza de supresión
+     * @param umbral      umbral mínimo de activación para competir
+     * @return este builder para encadenamiento
+     */
+    public ConfiguracionRedBuilder wta(boolean activo, boolean capaSalida,
+                                       boolean capasOcultas, int radio,
+                                       double fuerza, double umbral) {
+        this.wtaActivo = activo;
+        this.wtaCapaSalida = capaSalida;
+        this.wtaCapasOcultas = capasOcultas;
+        this.radioWTA = radio;
+        this.fuerzaWTA = fuerza;
+        this.umbralActivacionWTA = umbral;
+        return this;
+    }
+
+    /**
+     * Activa WTA solo en la capa de salida con valores por defecto.
+     *
+     * @return este builder para encadenamiento
+     */
+    public ConfiguracionRedBuilder conWTASalida() {
+        this.wtaActivo = true;
+        this.wtaCapaSalida = true;
+        return this;
+    }
+
+    /**
+     * Activa WTA en todas las capas (salida + ocultas) con valores por defecto.
+     *
+     * @return este builder para encadenamiento
+     */
+    public ConfiguracionRedBuilder conWTACompleto() {
+        this.wtaActivo = true;
+        this.wtaCapaSalida = true;
+        this.wtaCapasOcultas = true;
+        return this;
+    }
+
+    /**
+     * Desactiva WTA.
+     *
+     * @return este builder para encadenamiento
+     */
+    public ConfiguracionRedBuilder sinWTA() {
+        this.wtaActivo = false;
+        this.wtaCapaSalida = false;
+        this.wtaCapasOcultas = false;
+        return this;
+    }
+
+    /**
+     * Calcula el peso sináptico mínimo necesario para que una neurona
+     * postsináptica alcance el umbral de disparo recibiendo spikes periódicos
+     * de {@code numConexionesPresinapticas} conexiones.
+     *
+     * <p>Se basa en el estado estacionario del modelo LIF con entrada periódica:</p>
+     * <pre>
+     * V_ss = V_reposo + n * w * α / (1 - α)
+     * donde α = exp(-T / tau), T = 1000 / frecuenciaMaxima
+     * </pre>
+     *
+     * <p>Despejando w para V_ss = umbral:</p>
+     * <pre>
+     * w_min = (umbral - reposo) * (1 - α) / (n * α)
+     * </pre>
+     *
+     * @param numConexionesPresinapticas número de conexiones entrantes simultáneas
+     * @return peso mínimo necesario para activar la neurona en estado estacionario
+     */
+    public double calcularPesoMinimoPropagacion(int numConexionesPresinapticas) {
+        if (numConexionesPresinapticas <= 0) {
+            throw new IllegalArgumentException(
+                "El número de conexiones presinapticas debe ser positivo, recibido: "
+                        + numConexionesPresinapticas);
+        }
+        double brecha = umbralDisparo - potencialReposo;
+        double intervaloSpikes = 1000.0 / frecuenciaMaxima; // ms entre spikes
+        double alfa = Math.exp(-intervaloSpikes / constanteDecaimiento);
+        return brecha * (1.0 - alfa) / (numConexionesPresinapticas * alfa);
+    }
+
+    /**
+     * Calcula el peso sináptico necesario para propagación 1:1 (relay):
+     * cada spike presinaptico genera exactamente un spike postsinaptico.
+     *
+     * <p>Para relay, un solo spike debe superar la brecha umbral-reposo
+     * completa. Se añade un margen del 10% para compensar el decaimiento
+     * durante el retardo sináptico.</p>
+     *
+     * <pre>
+     * w_relay = (umbral - reposo) * 1.1
+     * </pre>
+     *
+     * <p>Este peso es mayor que {@link #calcularPesoMinimoPropagacion(int)}
+     * porque no depende de la acumulación temporal de múltiples spikes.</p>
+     *
+     * @return peso necesario para propagación 1:1 entre capas
+     */
+    public double calcularPesoRelay() {
+        double brecha = umbralDisparo - potencialReposo;
+        return brecha * 1.1;
+    }
+
+    /**
+     * Activa la autoconfiguración de pesos sinápticos.
+     *
+     * <p>Calcula automáticamente {@code pesoMin} y {@code pesoMax} para garantizar
+     * que la señal se propague correctamente por la red, basándose en la topología,
+     * los parámetros LIF y la frecuencia de codificación.</p>
+     *
+     * <p>El cálculo garantiza dos niveles de propagación:</p>
+     * <ul>
+     *   <li>Peso mínimo de propagación: el peso necesario para que spikes periódicos
+     *       de una sola conexión lleven la neurona al umbral en estado estacionario.</li>
+     *   <li>Peso de relay: el peso necesario para que un solo spike supere el umbral
+     *       directamente, permitiendo propagación 1:1 entre capas.</li>
+     * </ul>
+     *
+     * <p>El {@code pesoMax} se establece como 2× el peso de relay para dar margen
+     * de aprendizaje e inhibición.</p>
+     *
+     * <p>Si el usuario ya configuró los pesos manualmente con
+     * {@link #inicializacionPesos} o {@link #rangoPesos}, este método
+     * sobreescribe esos valores.</p>
+     *
+     * @return este builder para encadenamiento
+     */
+    public ConfiguracionRedBuilder autoconfigurar() {
+        // Peso de relay: un solo spike debe superar el umbral
+        // Necesario para propagación 1:1 entre capas
+        double brecha = umbralDisparo - potencialReposo;
+        double pesoRelay = brecha * 1.1; // 10% de margen sobre la brecha
+
+        // pesoMax = 2x relay para margen de aprendizaje e inhibición
+        this.pesoMax = pesoRelay * 2.0;
+        this.pesoMin = 0.0;
+        this.pesosConfiguradosManualmente = true;
+        return this;
+    }
+
     /**
      * Construye y retorna una instancia de {@link ConfiguracionRed} con los parámetros configurados.
      * 
+     * <p>Si el usuario no configuró los pesos manualmente, se aplica autoconfiguración
+     * automática para garantizar la propagación de señal. Esto calcula {@code pesoMax}
+     * basándose en la brecha umbral-reposo, la constante de decaimiento y la frecuencia
+     * de codificación.</p>
+     *
      * <p>Valida todos los parámetros antes de construir. Si algún parámetro es inválido,
      * lanza {@link IllegalArgumentException} con un mensaje descriptivo.</p>
      * 
@@ -530,6 +696,10 @@ public class ConfiguracionRedBuilder {
      * @throws IllegalArgumentException si algún parámetro es inválido
      */
     public ConfiguracionRed build() {
+        if (!pesosConfiguradosManualmente) {
+            autoconfigurar();
+        }
+
         return new ConfiguracionRed(
             topologia,
             umbralDisparo,
@@ -556,7 +726,13 @@ public class ConfiguracionRedBuilder {
             inhibicionLateralActiva,
             radioInhibicion,
             fuerzaInhibicion,
-            duracionTimestep
+            duracionTimestep,
+            wtaActivo,
+            wtaCapaSalida,
+            wtaCapasOcultas,
+            radioWTA,
+            fuerzaWTA,
+            umbralActivacionWTA
         );
     }
 }
