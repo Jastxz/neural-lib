@@ -90,11 +90,9 @@ public class Neurona implements Serializable {
         
         // Sumar inputs ponderados por peso sináptico
         for (Conexion dendrita : dendritas) {
-            Neurona neurona = this.vecinas.stream()
-                .filter(n -> n.equals(dendrita.getPresinaptica()))
-                .findFirst().orElseThrow();
-            if (neurona.estaActiva()) {
-                sumaInputs += dendrita.getPeso() * neurona.getPotencial();
+            Neurona pre = dendrita.getPresinaptica();
+            if (pre.estaActiva()) {
+                sumaInputs += dendrita.getPeso() * pre.getPotencial();
                 hayInputsActivos = true;
             }
         }

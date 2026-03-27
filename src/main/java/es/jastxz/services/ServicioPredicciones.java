@@ -13,13 +13,13 @@ import es.jastxz.nn.NeuralNetwork;
 import es.jastxz.util.ModelManager;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ServicioPredicciones {
 
-    private static Map<String, NeuralNetwork> modelCache = new HashMap<>();
+    private static final Map<String, NeuralNetwork> modelCache = new ConcurrentHashMap<>();
 
     /**
      * Predice el siguiente movimiento para 3 en Raya.

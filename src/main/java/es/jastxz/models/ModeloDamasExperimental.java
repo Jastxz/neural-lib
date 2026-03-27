@@ -168,8 +168,8 @@ public class ModeloDamasExperimental {
         
         // Si no encontró ninguno válido, elegir aleatorio
         if (mejorMovimiento == null) {
-            Random rand = new Random();
-            Movimiento movAleatorio = movimientosPosibles.get(rand.nextInt(movimientosPosibles.size()));
+            Movimiento movAleatorio = movimientosPosibles.get(
+                java.util.concurrent.ThreadLocalRandom.current().nextInt(movimientosPosibles.size()));
             Posicion origen = encontrarOrigen(tablero, movAleatorio.getTablero(), turno);
             mejorMovimiento = new MovimientoDamas(origen, movAleatorio.getPos());
         }

@@ -207,8 +207,8 @@ public class Modelo3enRayaExperimental {
         
         // Si no encontró ninguno válido, elegir aleatorio
         if (mejorMovimiento == null) {
-            Random rand = new Random();
-            mejorMovimiento = movimientosPosibles.get(rand.nextInt(movimientosPosibles.size())).getPos();
+            mejorMovimiento = movimientosPosibles.get(
+                java.util.concurrent.ThreadLocalRandom.current().nextInt(movimientosPosibles.size())).getPos();
         }
         
         return mejorMovimiento;

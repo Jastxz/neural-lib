@@ -231,16 +231,19 @@ public class GestorEngramas implements Serializable {
             return 0.0;
         }
         
-        // Contar neuronas comunes
-        long neuronasComunes = conjunto1.stream()
-            .filter(conjunto2::contains)
-            .count();
+        // Usar HashSet para O(1) lookup en lugar de O(n) List.contains()
+        Set<Neurona> set2 = new HashSet<>(conjunto2);
         
-        // Calcular similitud como promedio de ambas direcciones
+        int neuronasComunes = 0;
+        for (Neurona n : conjunto1) {
+            if (set2.contains(n)) {
+                neuronasComunes++;
+            }
+        }
+        
         double similitud1 = (double) neuronasComunes / conjunto1.size();
         double similitud2 = (double) neuronasComunes / conjunto2.size();
         
-        // Usar el promedio para considerar ambas direcciones
         return (similitud1 + similitud2) / 2.0;
     }
     

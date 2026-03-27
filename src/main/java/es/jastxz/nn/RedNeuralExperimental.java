@@ -77,6 +77,11 @@ public class RedNeuralExperimental implements Serializable {
     // Contador para IDs únicos
     private long contadorNeuronas;
     
+    // Cached lists — rebuilt only when topology changes
+    private transient List<Neurona> todasNeuronasCache;
+    private transient List<Conexion> conexionesFeedbackCache;
+    private transient boolean cachesValidas = false;
+    
     // Componentes auxiliares
     private final PropagadorSeñal propagador;
     private final EntrenadorHebiano entrenador;
@@ -144,6 +149,7 @@ public class RedNeuralExperimental implements Serializable {
         this.gestorConsolidacionAdaptativa = new GestorConsolidacionAdaptativa();
         
         generarConexiones();
+        invalidarCaches();
     }
     
     /**
@@ -476,25 +482,46 @@ public class RedNeuralExperimental implements Serializable {
     }
     
     /**
-     * Obtiene todas las neuronas de la red en una lista
+     * Obtiene todas las neuronas de la red en una lista (cached)
      */
     private List<Neurona> obtenerTodasNeuronas() {
-        List<Neurona> todas = new ArrayList<>();
-        todas.addAll(capaSensorial);
-        for (List<Neurona> capa : capasInterneuronas) {
-            todas.addAll(capa);
+        if (!cachesValidas || todasNeuronasCache == null) {
+            reconstruirCaches();
         }
-        todas.addAll(capaMotora);
-        return todas;
+        return todasNeuronasCache;
     }
     
     /**
-     * Obtiene solo las conexiones feedback (de capas posteriores a anteriores)
+     * Obtiene solo las conexiones feedback (cached)
      */
     private List<Conexion> obtenerConexionesFeedback() {
-        List<Conexion> feedback = new ArrayList<>();
+        if (!cachesValidas || conexionesFeedbackCache == null) {
+            reconstruirCaches();
+        }
+        return conexionesFeedbackCache;
+    }
+    
+    /**
+     * Invalida las caches — llamar cuando cambie la topología o conexiones
+     */
+    private void invalidarCaches() {
+        cachesValidas = false;
+    }
+    
+    /**
+     * Reconstruye las caches de neuronas y conexiones feedback
+     */
+    private void reconstruirCaches() {
+        // Cache de todas las neuronas
+        int totalNeuronas = getTotalNeuronas();
+        todasNeuronasCache = new ArrayList<>(totalNeuronas);
+        todasNeuronasCache.addAll(capaSensorial);
+        for (List<Neurona> capa : capasInterneuronas) {
+            todasNeuronasCache.addAll(capa);
+        }
+        todasNeuronasCache.addAll(capaMotora);
         
-        // Identificar qué neuronas están en qué capa
+        // Cache de conexiones feedback
         Set<Neurona> sensorial = new HashSet<>(capaSensorial);
         List<Set<Neurona>> intermedias = new ArrayList<>();
         for (List<Neurona> capa : capasInterneuronas) {
@@ -502,46 +529,44 @@ public class RedNeuralExperimental implements Serializable {
         }
         Set<Neurona> motora = new HashSet<>(capaMotora);
         
-        // Filtrar conexiones feedback
+        conexionesFeedbackCache = new ArrayList<>();
         for (Conexion c : conexiones) {
             Neurona pre = c.getPresinaptica();
             List<Neurona> posts = c.getPostsinapticas();
             
-            // Feedback: motora → inter o inter[i] → inter[i-1] o inter → sensorial
             boolean esFeedback = false;
             
-            // Motora → cualquier capa anterior
             if (motora.contains(pre)) {
                 esFeedback = true;
             }
             
-            // Inter[i] → Inter[i-1] o sensorial
-            for (int i = intermedias.size() - 1; i >= 0; i--) {
-                if (intermedias.get(i).contains(pre)) {
-                    // Verificar si alguna post está en capa anterior
-                    for (Neurona post : posts) {
-                        if (sensorial.contains(post)) {
-                            esFeedback = true;
-                            break;
-                        }
-                        for (int j = 0; j < i; j++) {
-                            if (intermedias.get(j).contains(post)) {
+            if (!esFeedback) {
+                for (int i = intermedias.size() - 1; i >= 0; i--) {
+                    if (intermedias.get(i).contains(pre)) {
+                        for (Neurona post : posts) {
+                            if (sensorial.contains(post)) {
                                 esFeedback = true;
                                 break;
                             }
+                            for (int j = 0; j < i; j++) {
+                                if (intermedias.get(j).contains(post)) {
+                                    esFeedback = true;
+                                    break;
+                                }
+                            }
+                            if (esFeedback) break;
                         }
-                        if (esFeedback) break;
                     }
+                    if (esFeedback) break;
                 }
-                if (esFeedback) break;
             }
             
             if (esFeedback) {
-                feedback.add(c);
+                conexionesFeedbackCache.add(c);
             }
         }
         
-        return feedback;
+        cachesValidas = true;
     }
     
     /**
@@ -808,7 +833,11 @@ public class RedNeuralExperimental implements Serializable {
      * @return Número de elementos podados
      */
     public int podarElementos() {
-        return gestorCompeticion.podarElementos(conexiones);
+        int podados = gestorCompeticion.podarElementos(conexiones);
+        if (podados > 0) {
+            invalidarCaches();
+        }
+        return podados;
     }
     
     /**
@@ -1194,7 +1223,8 @@ public class RedNeuralExperimental implements Serializable {
      * @throws IOException Si hay error al escribir el archivo
      */
     public void guardar(String filename) throws IOException {
-        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(filename))) {
+        try (ObjectOutputStream oos = new ObjectOutputStream(
+                new BufferedOutputStream(new FileOutputStream(filename)))) {
             oos.writeObject(this);
         }
     }
@@ -1208,7 +1238,8 @@ public class RedNeuralExperimental implements Serializable {
      * @throws ClassNotFoundException Si la clase no se encuentra
      */
     public static RedNeuralExperimental cargar(String filename) throws IOException, ClassNotFoundException {
-        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(filename))) {
+        try (ObjectInputStream ois = new ObjectInputStream(
+                new BufferedInputStream(new FileInputStream(filename)))) {
             return (RedNeuralExperimental) ois.readObject();
         }
     }

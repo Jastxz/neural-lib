@@ -91,13 +91,15 @@ public class Engrama implements Serializable {
      * Verifica si el engrama está activo basándose en cuántas neuronas participantes están activas
      */
     public boolean estaActivo() {
-        long neuronasActivas = neuronasParticipantes.stream()
-            .filter(Neurona::estaActiva)
-            .count();
+        int neuronasActivas = 0;
+        for (Neurona n : neuronasParticipantes) {
+            if (n.estaActiva()) neuronasActivas++;
+        }
         
         double proporcionActiva = (double) neuronasActivas / neuronasParticipantes.size();
-        double umbralProporcion = 0.3 + Math.random()*100 % 10 / 100;
-        return proporcionActiva >= umbralProporcion;  // Porcentaje mínimo para tener un recuerdo
+        // Umbral fijo del 30% — el cálculo anterior era un bug: Math.random()*100 % 10 / 100
+        // siempre producía valores en [0.0, 0.1) por precedencia de operadores
+        return proporcionActiva >= 0.3;
     }
     
     /**
@@ -144,9 +146,12 @@ public class Engrama implements Serializable {
             return false;
         }
         
-        long neuronasComunes = neuronas.stream()
-            .filter(neuronasParticipantes::contains)
-            .count();
+        int neuronasComunes = 0;
+        for (Neurona n : neuronas) {
+            if (neuronasParticipantes.contains(n)) {
+                neuronasComunes++;
+            }
+        }
         
         double proporcionComun = (double) neuronasComunes / neuronas.size();
         return proporcionComun >= umbralSolapamiento;

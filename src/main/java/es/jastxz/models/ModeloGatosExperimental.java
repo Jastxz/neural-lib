@@ -30,6 +30,7 @@ public class ModeloGatosExperimental {
     private RedNeuralExperimental cerebro;
     private String nombreModelo = "modeloGatosExperimental.nn";
     private Posicion posMouseInicial = new Posicion(0, 2);
+    private final java.util.concurrent.ThreadLocalRandom rng = java.util.concurrent.ThreadLocalRandom.current();
     
     // Estadísticas de entrenamiento
     private int partidasJugadas = 0;
@@ -209,8 +210,7 @@ public class ModeloGatosExperimental {
         
         // Si no encontró ninguno válido, elegir aleatorio
         if (mejorMovimiento == null) {
-            Random rand = new Random();
-            mejorMovimiento = movimientosPosibles.get(rand.nextInt(movimientosPosibles.size()));
+            mejorMovimiento = movimientosPosibles.get(rng.nextInt(movimientosPosibles.size()));
         }
         
         return mejorMovimiento;

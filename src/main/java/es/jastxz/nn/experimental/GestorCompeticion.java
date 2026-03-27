@@ -4,7 +4,9 @@ import es.jastxz.nn.Conexion;
 import es.jastxz.nn.Neurona;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.io.Serializable;
 
 /**
@@ -123,8 +125,10 @@ public class GestorCompeticion implements Serializable {
             conexionesAPodar = conexionesAPodar.subList(0, maxPodar);
         }
         
-        // Eliminar conexiones podadas
-        conexionesAPodar.stream().forEach(c -> conexiones.remove(c));
+        // Eliminar conexiones podadas — usar removeAll en lugar de stream().forEach(remove)
+        // que es O(n²) y puede lanzar ConcurrentModificationException
+        Set<Conexion> aPodar = new HashSet<>(conexionesAPodar);
+        conexiones.removeAll(aPodar);
         
         return conexionesAPodar.size();
     }

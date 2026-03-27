@@ -219,7 +219,7 @@ public class PropagadorSeñal implements Serializable {
             Neurona pre = conexion.getPresinaptica();
             
             // Si la neurona presináptica está activa, propagar feedback
-            if (pre.estaActiva() & conexion.getPeso() > 0) {
+            if (pre.estaActiva() && conexion.getPeso() > 0) {
                 double feedbackSeñal = conexion.getPeso() * pre.getPotencial() * 0.01; // Factor de modulación muy pequeño
                 
                 // Ajustar peso de la conexión feedback basándose en activación

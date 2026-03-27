@@ -1,8 +1,8 @@
 package es.jastxz.nn.experimental;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.ArrayDeque;
+import java.util.Deque;
 
 /**
  * Gestiona la consolidación adaptativa basada en tiempo de procesamiento
@@ -26,7 +26,8 @@ public class GestorConsolidacionAdaptativa implements Serializable {
     private static final int INTERVALO_INICIAL = 50;
     
     // Estado
-    private List<Long> tiemposProcesamiento; // Ventana deslizante
+    private Deque<Long> tiemposProcesamiento; // Ventana deslizante (ArrayDeque: O(1) add/remove)
+    private long sumaTiempos; // Running sum para evitar recalcular
     private int contadorIteraciones;
     private int intervaloActual;
     private boolean inicializado;
@@ -35,7 +36,8 @@ public class GestorConsolidacionAdaptativa implements Serializable {
      * Constructor
      */
     public GestorConsolidacionAdaptativa() {
-        this.tiemposProcesamiento = new ArrayList<>();
+        this.tiemposProcesamiento = new ArrayDeque<>(VENTANA_MEDICION);
+        this.sumaTiempos = 0L;
         this.contadorIteraciones = 0;
         this.intervaloActual = INTERVALO_INICIAL;
         this.inicializado = false;
@@ -48,11 +50,12 @@ public class GestorConsolidacionAdaptativa implements Serializable {
      * @param tiempoMs Tiempo en milisegundos
      */
     public void registrarTiempo(long tiempoMs) {
-        tiemposProcesamiento.add(tiempoMs);
+        tiemposProcesamiento.addLast(tiempoMs);
+        sumaTiempos += tiempoMs;
         
         // Mantener ventana deslizante de tamaño VENTANA_MEDICION
         if (tiemposProcesamiento.size() > VENTANA_MEDICION) {
-            tiemposProcesamiento.remove(0);
+            sumaTiempos -= tiemposProcesamiento.removeFirst();
         }
         
         contadorIteraciones++;
@@ -78,12 +81,7 @@ public class GestorConsolidacionAdaptativa implements Serializable {
             return;
         }
         
-        // Calcular promedio de tiempos
-        long suma = 0;
-        for (long tiempo : tiemposProcesamiento) {
-            suma += tiempo;
-        }
-        double promedioMs = (double) suma / tiemposProcesamiento.size();
+        double promedioMs = (double) sumaTiempos / tiemposProcesamiento.size();
         
         // Aplicar fórmula: max(10, min(100, promedioMs / 2))
         int nuevoIntervalo = (int) Math.max(INTERVALO_MIN, 
@@ -126,12 +124,7 @@ public class GestorConsolidacionAdaptativa implements Serializable {
             return 0.0;
         }
         
-        long suma = 0;
-        for (long tiempo : tiemposProcesamiento) {
-            suma += tiempo;
-        }
-        
-        return (double) suma / tiemposProcesamiento.size();
+        return (double) sumaTiempos / tiemposProcesamiento.size();
     }
     
     /**

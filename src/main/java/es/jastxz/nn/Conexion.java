@@ -73,7 +73,9 @@ public class Conexion implements Serializable {
         this.presinaptica = presinaptica;
         this.postsinapticas = postsinapticas;
         presinaptica.añadirVecinas(postsinapticas);
-        postsinapticas.stream().forEach(n -> n.añadirVecina(presinaptica));
+        for (Neurona n : postsinapticas) {
+            n.añadirVecina(presinaptica);
+        }
         
         this.peso = pesoInicial;
         this.tipo = tipo;
