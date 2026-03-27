@@ -254,46 +254,32 @@ public class PropagadorSeñal implements Serializable {
     public double[] getOutputs(List<Neurona> capaMotora, List<Conexion> conexiones) {
         double[] outputs = new double[capaMotora.size()];
         
+        // Pre-build index: neurona motora → incoming connections with active pre
+        java.util.Map<Neurona, List<Conexion>> entrantes = new java.util.IdentityHashMap<>();
+        for (Conexion c : conexiones) {
+            if (!c.getPresinaptica().estaActiva()) continue;
+            for (Neurona post : c.getPostsinapticas()) {
+                entrantes.computeIfAbsent(post, k -> new java.util.ArrayList<>()).add(c);
+            }
+        }
+        
         for (int i = 0; i < capaMotora.size(); i++) {
             Neurona neuronaMotora = capaMotora.get(i);
+            List<Conexion> conns = entrantes.get(neuronaMotora);
             
-            // Calcular potencial acumulado (suma ponderada de señales)
-            double potencialAcumulado = 0.0;
-            int contadorConexiones = 0;
-            
-            for (Conexion c : conexiones) {
-                // Verificar si esta conexión llega a la neurona motora
-                if (c.getPostsinapticas().contains(neuronaMotora)) {
-                    Neurona pre = c.getPresinaptica();
-                    
-                    // Solo contar señales de neuronas activas
-                    if (pre.estaActiva()) {
-                        double señal = c.getPeso() * pre.getPotencial();
-                        potencialAcumulado += señal;
-                        contadorConexiones++;
-                    }
-                }
-            }
-            
-            // Calcular output usando sigmoide del potencial
-            if (contadorConexiones > 0) {
-                // Normalizar por número de conexiones activas
-                double potencialPromedio = potencialAcumulado / contadorConexiones;
-                
-                // Normalizar a rango apropiado para sigmoide
-                // Potencial PICO = 40.0, mapear a [-5, 5] para buena distribución
-                // x = 0 → output = 0.5 (punto medio)
-                // x = -5 → output ≈ 0.007 (casi 0)
-                // x = +5 → output ≈ 0.993 (casi 1)
-                double x = (potencialPromedio / 40.0) * 10.0 - 5.0;
-                
-                // Sigmoide: 1 / (1 + e^(-x))
-                // Representa frecuencia de disparo proporcional al potencial
-                outputs[i] = 1.0 / (1.0 + Math.exp(-x));
-            } else {
-                // Si no hay conexiones activas, output es 0
+            if (conns == null || conns.isEmpty()) {
                 outputs[i] = 0.0;
+                continue;
             }
+            
+            double potencialAcumulado = 0.0;
+            for (Conexion c : conns) {
+                potencialAcumulado += c.getPeso() * c.getPresinaptica().getPotencial();
+            }
+            
+            double potencialPromedio = potencialAcumulado / conns.size();
+            double x = (potencialPromedio / 40.0) * 10.0 - 5.0;
+            outputs[i] = 1.0 / (1.0 + Math.exp(-x));
         }
         
         return outputs;

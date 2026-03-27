@@ -77,6 +77,15 @@ public class GestorPredicciones implements Serializable {
     public void calcularPredicciones(List<List<Neurona>> capasInterneuronas, 
                                      List<Neurona> capaMotora,
                                      List<Conexion> todasConexiones) {
+        // Pre-build index: neurona → list of incoming connections
+        // This avoids O(neuronas × conexiones) scanning
+        Map<Neurona, List<Conexion>> conexionesPorPost = new java.util.IdentityHashMap<>();
+        for (Conexion conexion : todasConexiones) {
+            for (Neurona post : conexion.getPostsinapticas()) {
+                conexionesPorPost.computeIfAbsent(post, k -> new java.util.ArrayList<>()).add(conexion);
+            }
+        }
+        
         // Predicción de capas intermedias
         for (int i = 0; i < capasInterneuronas.size(); i++) {
             List<Neurona> capaActual = capasInterneuronas.get(i);
@@ -84,20 +93,19 @@ public class GestorPredicciones implements Serializable {
             
             for (int j = 0; j < capaActual.size(); j++) {
                 Neurona neurona = capaActual.get(j);
+                List<Conexion> entrantes = conexionesPorPost.get(neurona);
+                if (entrantes == null) continue;
                 
                 double suma = 0.0;
                 int contador = 0;
                 
-                // Buscar conexiones que llegan a esta neurona
-                for (Conexion conexion : todasConexiones) {
-                    if (conexion.getPostsinapticas().contains(neurona)) {
-                        Neurona pre = conexion.getPresinaptica();
-                        if (pre.estaActiva()) {
-                            double potencialNormalizado = pre.getPotencial() / 
-                                PotencialMemoria.PICO.getValor();
-                            suma += conexion.getPeso() * potencialNormalizado;
-                            contador++;
-                        }
+                for (Conexion conexion : entrantes) {
+                    Neurona pre = conexion.getPresinaptica();
+                    if (pre.estaActiva()) {
+                        double potencialNormalizado = pre.getPotencial() / 
+                            PotencialMemoria.PICO.getValor();
+                        suma += conexion.getPeso() * potencialNormalizado;
+                        contador++;
                     }
                 }
                 
@@ -111,20 +119,19 @@ public class GestorPredicciones implements Serializable {
         double[] prediccionMotora = new double[capaMotora.size()];
         for (int i = 0; i < capaMotora.size(); i++) {
             Neurona neurona = capaMotora.get(i);
+            List<Conexion> entrantes = conexionesPorPost.get(neurona);
+            if (entrantes == null) continue;
             
             double suma = 0.0;
             int contador = 0;
             
-            // Buscar conexiones que llegan a esta neurona motora
-            for (Conexion conexion : todasConexiones) {
-                if (conexion.getPostsinapticas().contains(neurona)) {
-                    Neurona pre = conexion.getPresinaptica();
-                    if (pre.estaActiva()) {
-                        double potencialNormalizado = pre.getPotencial() / 
-                            PotencialMemoria.PICO.getValor();
-                        suma += conexion.getPeso() * potencialNormalizado;
-                        contador++;
-                    }
+            for (Conexion conexion : entrantes) {
+                Neurona pre = conexion.getPresinaptica();
+                if (pre.estaActiva()) {
+                    double potencialNormalizado = pre.getPotencial() / 
+                        PotencialMemoria.PICO.getValor();
+                    suma += conexion.getPeso() * potencialNormalizado;
+                    contador++;
                 }
             }
             

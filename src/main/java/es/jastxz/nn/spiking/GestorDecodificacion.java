@@ -218,7 +218,14 @@ public class GestorDecodificacion implements java.io.Serializable {
          * @param timestampLimite timestamp mínimo a mantener
          */
         public void limpiarAntiguos(long timestampLimite) {
-            timestamps.removeIf(t -> t < timestampLimite);
+            // Iterar desde el inicio y eliminar los antiguos (la lista está en orden cronológico)
+            int i = 0;
+            while (i < timestamps.size() && timestamps.get(i) < timestampLimite) {
+                i++;
+            }
+            if (i > 0) {
+                timestamps.subList(0, i).clear();
+            }
         }
         
         /**

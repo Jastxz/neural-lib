@@ -529,9 +529,11 @@ public class RedNeuralSpiking implements Serializable {
      * @return true si existe una conexión entre pre y post, false en caso contrario
      */
     public boolean existeConexion(NeuronaSpiking pre, NeuronaSpiking post) {
-        for (SinapsisSpiking s : sinapsis) {
-            if (s.getPresinaptica().getId() == pre.getId() &&
-                s.getPostsinaptica().getId() == post.getId()) {
+        asegurarIndices();
+        List<SinapsisSpiking> conexiones = sinapsisPorPresinaptica.get(pre.getId());
+        if (conexiones == null) return false;
+        for (SinapsisSpiking s : conexiones) {
+            if (s.getPostsinaptica().getId() == post.getId()) {
                 return true;
             }
         }
@@ -1117,22 +1119,19 @@ public class RedNeuralSpiking implements Serializable {
         java.util.List<EventoSpike> eventosEntrada = codificador.codificar(inputs, duracionTimesteps);
 
         // 2. Encolar eventos en la cola de eventos
+        // Pre-calcular peso de señal de entrada (constante para todos los eventos)
+        double pesoSeñal = configuracion.umbralDisparo - configuracion.potencialReposo + 5.0;
+        List<NeuronaSpiking> capaEntrada = capas.get(0);
+        
         for (EventoSpike evento : eventosEntrada) {
-            // Los eventos de entrada deben ser entregados a las neuronas de la capa de entrada
-            // Necesitamos crear eventos que apunten a las neuronas correctas de la capa 0
-            NeuronaSpiking neuronaEntrada = capas.get(0).get(evento.getIndice());
+            NeuronaSpiking neuronaEntrada = capaEntrada.get(evento.getIndice());
 
-            // Crear un evento que será procesado como señal de entrada
-            // Usamos un peso fuerte para asegurar que las neuronas de entrada disparen
-            // El peso debe ser suficiente para llevar el potencial por encima del umbral
-            double pesoSeñal = configuracion.umbralDisparo - configuracion.potencialReposo + 5.0;
-            
             EventoSpike eventoParaNeurona = new EventoSpike(
                 neuronaEntrada.getId(),
                 0,
                 evento.getIndice(),
                 evento.getTimestamp(),
-                pesoSeñal  // Peso de la señal de entrada
+                pesoSeñal
             );
 
             colaEventos.encolar(eventoParaNeurona);
@@ -1346,13 +1345,10 @@ public class RedNeuralSpiking implements Serializable {
 
             List<NeuronaSpiking> capa = capas.get(indiceCapa);
             for (NeuronaSpiking neurona : capa) {
-                // Obtener sinapsis entrantes a esta neurona
-                java.util.List<SinapsisSpiking> entrantes = new java.util.ArrayList<>();
-                for (SinapsisSpiking s : this.sinapsis) {
-                    if (s.getPostsinaptica().getId() == neurona.getId()) {
-                        entrantes.add(s);
-                    }
-                }
+                // Obtener sinapsis entrantes usando el índice de acceso rápido
+                asegurarIndices();
+                List<SinapsisSpiking> entrantes = sinapsisPorPostsinaptica
+                    .getOrDefault(neurona.getId(), java.util.Collections.emptyList());
 
                 if (entrantes.isEmpty()) continue;
 
@@ -1544,7 +1540,7 @@ public class RedNeuralSpiking implements Serializable {
             throw new IllegalArgumentException("El nombre de archivo no puede ser null o vacío");
         }
         try (java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(
-                new java.io.FileOutputStream(filename))) {
+                new java.io.BufferedOutputStream(new java.io.FileOutputStream(filename)))) {
             oos.writeObject(this);
         }
     }
@@ -1565,7 +1561,7 @@ public class RedNeuralSpiking implements Serializable {
         }
         RedNeuralSpiking red;
         try (java.io.ObjectInputStream ois = new java.io.ObjectInputStream(
-                new java.io.FileInputStream(filename))) {
+                new java.io.BufferedInputStream(new java.io.FileInputStream(filename)))) {
             red = (RedNeuralSpiking) ois.readObject();
         }
         // Reconstruir índices transient tras deserialización

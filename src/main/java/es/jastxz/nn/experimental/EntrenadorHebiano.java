@@ -57,48 +57,44 @@ public class EntrenadorHebiano implements Serializable {
                                            double[] errores,
                                            List<Conexion> todasConexiones,
                                            double tasaAprendizaje) {
-        double lambda = 0.001;  // Factor de regularización L2 (reducido 10x para evitar colapso de pesos)
+        double lambda = 0.001;  // Factor de regularización L2
         
-        // REFACTORIZADO: Ajustar SOLO pesos de conexiones que llegan a neuronas motoras
-        // El conocimiento está en las sinapsis, no en las neuronas
+        // Pre-build lookup: neurona motora → índice en array de errores
+        java.util.Map<Neurona, Integer> motoraIndice = new java.util.IdentityHashMap<>(capaMotora.size());
+        for (int i = 0; i < capaMotora.size(); i++) {
+            motoraIndice.put(capaMotora.get(i), i);
+        }
+        
         for (Conexion conexion : todasConexiones) {
-            // MEJORA 2: Saltar conexiones congeladas
             if (conexion.estaCongelada()) {
                 continue;
             }
             
             List<Neurona> postsinapticas = conexion.getPostsinapticas();
             
-            // Verificar si alguna postsináptica es motora
-            for (int i = 0; i < capaMotora.size(); i++) {
-                if (postsinapticas.contains(capaMotora.get(i))) {
+            // Buscar si alguna postsináptica es motora usando el mapa O(1)
+            for (Neurona post : postsinapticas) {
+                Integer idx = motoraIndice.get(post);
+                if (idx != null) {
                     Neurona pre = conexion.getPresinaptica();
-                    Neurona post = capaMotora.get(i);
-                    double error = errores[i];
+                    double error = errores[idx];
                     
-                    // MEJORA 1: Solo ajustar si AMBAS neuronas están activas
-                    // Principio hebiano: "neuronas que se activan juntas, se conectan"
                     if (pre.estaActiva() && post.estaActiva()) {
                         double ajustePeso = error * tasaAprendizaje;
                         double pesoActual = conexion.getPeso();
                         
-                        // PROTECCIÓN TOTAL: Pesos negativos (inhibitorios) permanecen negativos
-                        // Principio biológico: neuronas inhibitorias son estables
                         if (pesoActual < 0) {
-                            // Conexión inhibitoria: solo permitir ajustes negativos (más inhibición)
                             double nuevoPeso = pesoActual - ajustePeso;
                             conexion.setPeso(Math.min(-0.1, Math.max(-1.0, nuevoPeso)));
                         } else {
-                            // Conexión excitatoria: ajuste normal con regularización
                             double penalizacion = lambda * pesoActual;
                             double nuevoPeso = pesoActual + ajustePeso - penalizacion;
                             conexion.setPeso(Math.max(0.0, Math.min(1.0, nuevoPeso)));
                         }
                         
-                        // Actualizar estado de congelación
                         conexion.actualizarCongelacion();
                     }
-                    break; // Ya procesamos esta conexión
+                    break;
                 }
             }
         }
@@ -140,62 +136,54 @@ public class EntrenadorHebiano implements Serializable {
                                         double tasaAprendizaje,
                                         double lambda,
                                         List<Conexion> todasConexiones) {
-        // Si no hay capas intermedias, no hay nada que propagar
         if (capasInterneuronas.isEmpty()) {
             return;
         }
         
-        // Propagar error a última capa intermedia
-        List<Neurona> ultimaInter = capasInterneuronas.get(capasInterneuronas.size() - 1);
+        // Pre-build lookup: neurona motora → índice
+        java.util.Map<Neurona, Integer> motoraIndice = new java.util.IdentityHashMap<>(capaMotora.size());
+        for (int i = 0; i < capaMotora.size(); i++) {
+            motoraIndice.put(capaMotora.get(i), i);
+        }
         
-        for (int i = 0; i < ultimaInter.size(); i++) {
-            Neurona neuronaInter = ultimaInter.get(i);
+        // Pre-build lookup: neurona intermedia activa → set para O(1) check
+        List<Neurona> ultimaInter = capasInterneuronas.get(capasInterneuronas.size() - 1);
+        java.util.Set<Neurona> interActivasSet = java.util.Collections.newSetFromMap(
+            new java.util.IdentityHashMap<>(ultimaInter.size()));
+        for (Neurona n : ultimaInter) {
+            if (n.estaActiva()) interActivasSet.add(n);
+        }
+        
+        if (interActivasSet.isEmpty()) return;
+        
+        // Single pass over connections
+        for (Conexion conexion : todasConexiones) {
+            if (conexion.estaCongelada()) continue;
             
-            // MEJORA 1: Solo ajustar si la neurona intermedia está activa
-            if (!neuronaInter.estaActiva()) {
-                continue;
-            }
+            Neurona pre = conexion.getPresinaptica();
+            if (!interActivasSet.contains(pre)) continue;
             
-            // REFACTORIZADO: Ajustar SOLO pesos de conexiones hacia capa motora
-            for (Conexion conexion : todasConexiones) {
-                // MEJORA 2: Saltar conexiones congeladas
-                if (conexion.estaCongelada()) {
-                    continue;
-                }
-                
-                if (conexion.getPresinaptica() == neuronaInter) {
-                    List<Neurona> postsinapticas = conexion.getPostsinapticas();
+            List<Neurona> postsinapticas = conexion.getPostsinapticas();
+            
+            for (Neurona post : postsinapticas) {
+                Integer j = motoraIndice.get(post);
+                if (j != null && post.estaActiva()) {
+                    double ajustePeso = erroresMotora[j] * tasaAprendizaje * 0.5;
+                    double pesoActual = conexion.getPeso();
                     
-                    for (int j = 0; j < capaMotora.size(); j++) {
-                        Neurona neuronaMotora = capaMotora.get(j);
-                        
-                        if (postsinapticas.contains(neuronaMotora)) {
-                            // MEJORA 1: Solo ajustar si la neurona motora también está activa
-                            if (neuronaMotora.estaActiva()) {
-                                double ajustePeso = erroresMotora[j] * tasaAprendizaje * 0.5;
-                                double pesoActual = conexion.getPeso();
-                                
-                                // PROTECCIÓN TOTAL: Pesos negativos permanecen negativos
-                                if (pesoActual < 0) {
-                                    // Conexión inhibitoria: solo permitir ajustes negativos
-                                    if (ajustePeso < 0) {
-                                        // Ajuste negativo: permitir sin regularización
-                                        double nuevoPeso = pesoActual + ajustePeso;
-                                        conexion.setPeso(Math.min(-0.1, Math.max(-1.0, nuevoPeso)));
-                                    }
-                                } else {
-                                    // Conexión excitatoria: ajuste normal con regularización
-                                    double penalizacion = lambda * pesoActual;
-                                    double nuevoPeso = pesoActual + ajustePeso - penalizacion;
-                                    conexion.setPeso(Math.max(0.0, Math.min(1.0, nuevoPeso)));
-                                }
-                                
-                                // Actualizar estado de congelación
-                                conexion.actualizarCongelacion();
-                            }
-                            break; // Ya ajustamos esta conexión
+                    if (pesoActual < 0) {
+                        if (ajustePeso < 0) {
+                            double nuevoPeso = pesoActual + ajustePeso;
+                            conexion.setPeso(Math.min(-0.1, Math.max(-1.0, nuevoPeso)));
                         }
+                    } else {
+                        double penalizacion = lambda * pesoActual;
+                        double nuevoPeso = pesoActual + ajustePeso - penalizacion;
+                        conexion.setPeso(Math.max(0.0, Math.min(1.0, nuevoPeso)));
                     }
+                    
+                    conexion.actualizarCongelacion();
+                    break;
                 }
             }
         }
