@@ -10,7 +10,7 @@ import es.jastxz.nn.NeuralNetwork;
 
 public class ModelManager {
 
-    private static final String resourcesPath = "/home/javier/Repos/neural-lib/src/main/resources/";
+    private static final String resourcesPath = "src/main/resources/";
 
     public static void saveModel(NeuralNetwork nn, String path) {
         path = resourcesPath + path;

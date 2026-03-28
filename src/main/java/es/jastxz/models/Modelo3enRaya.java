@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Set;
 
 import es.jastxz.engine.Funciones3enRaya;
-import es.jastxz.engine.Minimax;
 import es.jastxz.tipos.Mundo;
 import es.jastxz.tipos.Movimiento;
 import es.jastxz.tipos.Posicion;

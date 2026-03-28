@@ -6,11 +6,11 @@
 
     <groupId>es.jastxz</groupId>
     <artifactId>neural-lib</artifactId>
-    <version>1.0</version>
+    <version>1.2</version>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>21</maven.compiler.release>
     </properties>
 
     <dependencies>
@@ -27,9 +27,20 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>net.jqwik</groupId>
+            <artifactId>jqwik</artifactId>
+            <version>1.7.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>es.jastxz</groupId>
             <artifactId>engine-lib</artifactId>
             <version>1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.knowm.xchart</groupId>
+            <artifactId>xchart</artifactId>
+            <version>3.8.7</version>
         </dependency>
     </dependencies>
 
@@ -37,8 +48,16 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.2</version>
+                <configuration>
+                    <argLine>-Xms512m -Xmx1g</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>
